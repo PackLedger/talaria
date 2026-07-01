@@ -7,7 +7,7 @@ export const Route = createFileRoute('/api/auth/session')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        return json({ user: getSessionUser(request) })
+        return json({ user: await getSessionUser(request) })
       },
     },
   },

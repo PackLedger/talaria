@@ -3,7 +3,9 @@
 // profile from the userinfo endpoint (so we never have to verify a JWT locally).
 
 import { getAuthConfig } from './config'
-import type { SessionUser } from './session'
+import type { Identity } from '../users'
+
+export type LoginResult = Identity & { provider: 'google' }
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
@@ -45,8 +47,8 @@ interface GoogleUserInfo {
   hd?: string
 }
 
-/** Exchange the auth code and resolve the Google identity as a SessionUser. */
-export async function exchangeGoogleCode(code: string, redirectUri: string): Promise<SessionUser> {
+/** Exchange the auth code and resolve the Google identity. */
+export async function exchangeGoogleCode(code: string, redirectUri: string): Promise<LoginResult> {
   const cfg = getAuthConfig().google
 
   const tokenRes = await fetch(TOKEN_ENDPOINT, {
@@ -85,6 +87,6 @@ export async function exchangeGoogleCode(code: string, redirectUri: string): Pro
     email: info.email ?? null,
     name: info.name ?? info.email ?? null,
     picture: info.picture ?? null,
-    provider: 'google',
+    provider: 'google' as const,
   }
 }

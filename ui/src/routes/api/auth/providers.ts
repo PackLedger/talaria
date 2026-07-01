@@ -12,7 +12,7 @@ export const Route = createFileRoute('/api/auth/providers')({
         return json({
           providers: enabledProviders(cfg),
           // Surfaced so the login screen can warn instead of silently failing.
-          configured: Boolean(cfg.secret),
+          configured: Boolean(process.env.DATABASE_URL && process.env.REDIS_URL),
         })
       },
     },

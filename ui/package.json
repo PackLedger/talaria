@@ -18,6 +18,8 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.36.0",
     "highlight.js": "^11.11.1",
+    "ioredis": "^5.11.1",
+    "postgres": "^3.4.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",

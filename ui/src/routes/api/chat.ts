@@ -3,6 +3,7 @@ import { json } from '@tanstack/react-start'
 import { z } from 'zod'
 import { proxyChat } from '@/server/gateway'
 import { getSessionUser } from '@/server/auth/session'
+import { allowedAgents, canUseAgent } from '@/server/users'
 
 const Body = z.object({
   model: z.string().min(1),
@@ -12,14 +13,22 @@ const Body = z.object({
 })
 
 // POST /api/chat → streaming chat, proxied to the gateway plane (model-routed to
-// the agent). Auth-gated; returns SSE (OpenAI chunk format).
+// the agent). Auth-gated + per-agent access enforced. Returns SSE.
 export const Route = createFileRoute('/api/chat')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        if (!getSessionUser(request)) return json({ error: 'unauthorized' }, { status: 401 })
+        const user = await getSessionUser(request)
+        if (!user) return json({ error: 'unauthorized' }, { status: 401 })
+
         const parsed = Body.safeParse(await request.json().catch(() => null))
         if (!parsed.success) return json({ error: 'bad request' }, { status: 400 })
+
+        const access = await allowedAgents(user.id, user.role)
+        if (!canUseAgent(access, parsed.data.model)) {
+          return json({ error: 'forbidden: no access to this agent' }, { status: 403 })
+        }
+
         return proxyChat(parsed.data)
       },
     },

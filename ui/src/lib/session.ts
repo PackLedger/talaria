@@ -3,11 +3,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ProviderMeta } from '@/server/auth/config'
 
 export interface SessionUser {
+  id: string
   sub: string
   email: string | null
   name: string | null
   picture: string | null
   provider: 'google' | 'password'
+  role: 'admin' | 'member'
+}
+
+export function useIsAdmin(user: SessionUser | null | undefined): boolean {
+  return user?.role === 'admin'
 }
 
 export function useSession() {

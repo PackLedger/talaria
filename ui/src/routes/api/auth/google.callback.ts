@@ -3,11 +3,12 @@ import { getAuthConfig, isEmailAllowed } from '@/server/auth/config'
 import { exchangeGoogleCode, googleRedirectUri } from '@/server/auth/google'
 import {
   clearStateCookie,
-  createSessionToken,
+  createSession,
   parseCookies,
   sessionCookie,
   STATE_COOKIE,
 } from '@/server/auth/session'
+import { upsertUser } from '@/server/users'
 
 // Bounce back to the login screen with a machine-readable reason.
 function loginError(reason: string): Response {
@@ -24,7 +25,7 @@ export const Route = createFileRoute('/api/auth/google/callback')({
     handlers: {
       GET: async ({ request }) => {
         const cfg = getAuthConfig()
-        if (!cfg.google.enabled || !cfg.secret) return loginError('google_disabled')
+        if (!cfg.google.enabled) return loginError('google_disabled')
 
         const url = new URL(request.url)
         const code = url.searchParams.get('code')
@@ -36,20 +37,21 @@ export const Route = createFileRoute('/api/auth/google/callback')({
           return loginError('bad_state')
         }
 
-        let user
+        let identity
         try {
-          user = await exchangeGoogleCode(code, googleRedirectUri(request))
+          identity = await exchangeGoogleCode(code, googleRedirectUri(request))
         } catch (err) {
           if (import.meta.env.DEV) console.error('[auth/google] callback failed:', err)
           return loginError('exchange_failed')
         }
 
-        if (!isEmailAllowed(user.email, cfg)) return loginError('not_allowed')
+        if (!isEmailAllowed(identity.email, cfg)) return loginError('not_allowed')
 
-        const token = createSessionToken(user, cfg.secret)
+        const user = await upsertUser(identity)
+        const sid = await createSession({ ...user, provider: identity.provider })
         const headers = new Headers({ Location: '/' })
         // Set the session and drop the one-shot state cookie.
-        headers.append('Set-Cookie', sessionCookie(token))
+        headers.append('Set-Cookie', sessionCookie(sid))
         headers.append('Set-Cookie', clearStateCookie())
         return new Response(null, { status: 302, headers })
       },

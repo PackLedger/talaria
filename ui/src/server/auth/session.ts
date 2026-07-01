@@ -1,73 +1,55 @@
-// Signed, stateless session + short-lived state cookies (HMAC-SHA256).
-//
-// A session is base64url(payload).base64url(hmac). No server-side store — the
-// signature + exp are the trust. Rotate AUTH_SECRET to invalidate everything.
+// Sessions — Redis-backed. The cookie carries only an opaque session id; the
+// user record lives in Redis under `sess:<sid>` with a TTL. Logout deletes it.
+// (OAuth state stays a short signed-free double-submit cookie — no server state.)
 
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
-import { getAuthConfig, type ProviderId } from './config'
+import { randomBytes } from 'node:crypto'
+import { getRedis } from '../db/redis'
+import type { ProviderId } from './config'
+import type { Role } from '../users'
 
 export const SESSION_COOKIE = 'talaria_session'
 export const STATE_COOKIE = 'talaria_oauth_state'
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7 // 7 days
 
 export interface SessionUser {
+  id: string
   sub: string
   email: string | null
   name: string | null
   picture: string | null
   provider: ProviderId
+  role: Role
 }
 
-interface SessionPayload extends SessionUser {
-  iat: number
-  exp: number
+const key = (sid: string) => `sess:${sid}`
+
+/** Create a session in Redis; returns the opaque session id for the cookie. */
+export async function createSession(user: SessionUser): Promise<string> {
+  const sid = randomToken()
+  await getRedis().set(key(sid), JSON.stringify(user), 'EX', SESSION_TTL_SECONDS)
+  return sid
 }
 
-const b64url = (buf: Buffer | string) =>
-  Buffer.from(buf).toString('base64url')
-
-function sign(data: string, secret: string): string {
-  return createHmac('sha256', secret).update(data).digest('base64url')
-}
-
-/** Constant-time string compare that never throws on length mismatch. */
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a)
-  const bb = Buffer.from(b)
-  if (ab.length !== bb.length) return false
-  return timingSafeEqual(ab, bb)
-}
-
-export function createSessionToken(user: SessionUser, secret: string): string {
-  const now = Math.floor(Date.now() / 1000)
-  const payload: SessionPayload = { ...user, iat: now, exp: now + SESSION_TTL_SECONDS }
-  const body = b64url(JSON.stringify(payload))
-  return `${body}.${sign(body, secret)}`
-}
-
-export function verifySessionToken(token: string | undefined, secret: string): SessionUser | null {
-  if (!token || !secret) return null
-  const dot = token.lastIndexOf('.')
-  if (dot === -1) return null
-  const body = token.slice(0, dot)
-  const mac = token.slice(dot + 1)
-  if (!safeEqual(mac, sign(body, secret))) return null
+/** Read + resolve the current user from the request's session cookie. */
+export async function getSessionUser(request: Request): Promise<SessionUser | null> {
+  const sid = parseCookies(request)[SESSION_COOKIE]
+  if (!sid) return null
+  const raw = await getRedis().get(key(sid))
+  if (!raw) return null
   try {
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as SessionPayload
-    if (typeof payload.exp !== 'number' || payload.exp < Math.floor(Date.now() / 1000)) return null
-    return {
-      sub: payload.sub,
-      email: payload.email ?? null,
-      name: payload.name ?? null,
-      picture: payload.picture ?? null,
-      provider: payload.provider,
-    }
+    return JSON.parse(raw) as SessionUser
   } catch {
     return null
   }
 }
 
-// ── Cookie helpers ─────────────────────────────────────────────────────────
+/** Delete the session behind the request's cookie (logout). */
+export async function destroySession(request: Request): Promise<void> {
+  const sid = parseCookies(request)[SESSION_COOKIE]
+  if (sid) await getRedis().del(key(sid))
+}
+
+// ── Cookie helpers ───────────────────────────────────────────────────────────
 
 export function parseCookies(request: Request): Record<string, string> {
   const header = request.headers.get('cookie') ?? ''
@@ -86,16 +68,10 @@ function cookieString(name: string, value: string, maxAge: number): string {
   return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`
 }
 
-export const sessionCookie = (token: string) => cookieString(SESSION_COOKIE, token, SESSION_TTL_SECONDS)
+export const sessionCookie = (sid: string) => cookieString(SESSION_COOKIE, sid, SESSION_TTL_SECONDS)
 export const clearSessionCookie = () => cookieString(SESSION_COOKIE, '', 0)
 export const stateCookie = (value: string) => cookieString(STATE_COOKIE, value, 600) // 10 min
 export const clearStateCookie = () => cookieString(STATE_COOKIE, '', 0)
 
-/** Read + verify the current user from the request's session cookie. */
-export function getSessionUser(request: Request): SessionUser | null {
-  const secret = getAuthConfig().secret
-  return verifySessionToken(parseCookies(request)[SESSION_COOKIE], secret)
-}
-
-/** Random URL-safe token for OAuth state / CSRF. */
+/** Random URL-safe token for session ids / OAuth state. */
 export const randomToken = (bytes = 32) => randomBytes(bytes).toString('base64url')
