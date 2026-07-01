@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Avatar } from '@/components/ui/avatar'
 import { renameBoard, useBoardMembers, type Board } from '@/lib/boards'
 
-// Board page header: editable name, stacked member avatars, share.
-export function BoardHeader({ board, onShare }: { board: Board; onShare: () => void }) {
+// Board page header: editable name, stacked member avatars, share + agents.
+export function BoardHeader({ board, onShare, onAgents }: { board: Board; onShare: () => void; onAgents: () => void }) {
   const qc = useQueryClient()
   const { data: members = [] } = useBoardMembers(board.id)
   const canEdit = board.role === 'owner' || board.role === 'editor'
@@ -58,9 +58,14 @@ export function BoardHeader({ board, onShare }: { board: Board; onShare: () => v
       </div>
 
       {canEdit && (
-        <Button variant="outline" size="sm" onClick={onShare}>
-          Share
-        </Button>
+        <>
+          <Button variant="ghost" size="sm" onClick={onAgents}>
+            Agents
+          </Button>
+          <Button variant="outline" size="sm" onClick={onShare}>
+            Share
+          </Button>
+        </>
       )}
     </div>
   )
