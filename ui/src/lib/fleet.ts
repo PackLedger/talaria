@@ -1,9 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 
+export type AgentStatus = 'offline' | 'idle' | 'busy' | 'error'
+
 export interface FleetAgentStat {
   id: string
   label: string
   role: string
+  status: AgentStatus
+  lastSeen: string | null
+  lastActivity: string | null
   conversations: number
   messages: number
   lastUsed: string | null
@@ -12,7 +17,14 @@ export interface FleetAgentStat {
 export interface FleetOverview {
   agents: FleetAgentStat[]
   source: 'gateway' | 'mock'
-  totals: { agents: number; conversations: number; messages: number; activeToday: number }
+  totals: { agents: number; online: number; conversations: number; messages: number; activeToday: number }
+}
+
+export const STATUS_COLOR: Record<AgentStatus, string> = {
+  idle: 'var(--theme-success)',
+  busy: 'var(--theme-warning)',
+  error: 'var(--theme-danger)',
+  offline: 'var(--theme-border)',
 }
 
 export function useFleet() {

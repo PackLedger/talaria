@@ -57,6 +57,21 @@ const MIGRATIONS: string[] = [
      unique (conversation_id, seq)
    )`,
   `create index if not exists messages_conv_idx on messages(conversation_id, seq)`,
+  // Fleet agent registry — Talaria's own "brain" (ripped from mission-control's
+  // agents table). Agents register + heartbeat to Talaria, not MC.
+  `create table if not exists fleet_agents (
+     id uuid primary key default gen_random_uuid(),
+     name text unique not null,
+     role text not null default 'agent',
+     status text not null default 'offline',
+     last_seen timestamptz,
+     last_activity text,
+     framework text,
+     capabilities jsonb not null default '[]',
+     config jsonb not null default '{}',
+     created_at timestamptz not null default now(),
+     updated_at timestamptz not null default now()
+   )`,
 ]
 
 function ensureMigrated(): Promise<void> {

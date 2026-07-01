@@ -146,6 +146,8 @@ services:
       REDIS_URL: redis://talaria-redis:6379
       # The fleet multiplexer (gateway plane) — same host the workspace uses.
       TALARIA_GATEWAY_URL: ${TALARIA_GATEWAY_URL:-http://talaria-bridge:8642}
+      # Agents present this to register/heartbeat to Talaria's own brain.
+      TALARIA_AGENT_KEY: ${TALARIA_AGENT_KEY:-}
       # Auth (see stack/.env.example). Behind the CF/HTTPS tunnel COOKIE_SECURE=true.
       AUTH_ADMIN_EMAILS: ${AUTH_ADMIN_EMAILS:-}
       AUTH_ALLOWED_DOMAINS: ${AUTH_ALLOWED_DOMAINS:-}
