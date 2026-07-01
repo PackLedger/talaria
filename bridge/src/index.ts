@@ -15,6 +15,7 @@ import httpProxy from "http-proxy";
 import { loadConfig } from "./config.js";
 import { MissionControlClient } from "./missionControl.js";
 import { isMissionRoute, handleMission, MISSION_ROUTES } from "./intercept.js";
+import { isKanbanRoute, handleKanban } from "./kanban.js";
 
 const cfg = loadConfig();
 const mc = new MissionControlClient(cfg);
@@ -63,6 +64,20 @@ const server = http.createServer((req, res) => {
       if (!res.headersSent) {
         res.statusCode = 500;
         res.end(JSON.stringify({ error: "talaria: mission handler failed" }));
+      }
+    });
+    return;
+  }
+
+  // Kanban plugin surface → served from mission-control (the fleet board view).
+  // Only when a brain is configured + the toggle is on; otherwise pass through to
+  // the real dashboard so pure-proxy mode keeps the native Hermes kanban.
+  if (mc.enabled && cfg.kanbanFromMc && isKanbanRoute(req)) {
+    handleKanban(req, res, mc).catch((err) => {
+      console.error(`[talaria] kanban handler error: ${err.message}`);
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: "talaria: kanban handler failed" }));
       }
     });
     return;

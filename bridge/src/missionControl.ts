@@ -46,9 +46,19 @@ export class MissionControlClient {
     return this.request("POST", "/api/tasks", task);
   }
 
+  /** List tasks: GET /api/tasks → { tasks: [...], total }. */
+  listTasks(limit = 200): Promise<unknown> {
+    return this.request("GET", `/api/tasks?limit=${encodeURIComponent(String(limit))}`);
+  }
+
   /** Fetch one task: GET /api/tasks/{id} → { task: {...} }. */
   getTask(id: string | number): Promise<unknown> {
     return this.request("GET", `/api/tasks/${encodeURIComponent(String(id))}`);
+  }
+
+  /** Fetch a task's comments: GET /api/tasks/{id}/comments → { comments: [...] }. */
+  getTaskComments(id: string | number): Promise<unknown> {
+    return this.request("GET", `/api/tasks/${encodeURIComponent(String(id))}/comments`);
   }
 
   /** Update/report a task: PUT /api/tasks/{id} with {status, outcome, ...}. */

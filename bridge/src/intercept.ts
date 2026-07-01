@@ -17,6 +17,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { MissionControlClient } from "./missionControl.js";
+import { readBody, sendJson } from "./http-util.js";
 
 interface MissionRoute {
   method: string;
@@ -51,31 +52,6 @@ export function isMissionRoute(req: IncomingMessage): boolean {
   const method = (req.method ?? "GET").toUpperCase();
   const path = (req.url ?? "").split("?")[0];
   return MISSION_ROUTES.some((r) => r.method === method && r.pattern.test(path));
-}
-
-/** Read a request body to a string (bounded), for JSON translation. */
-function readBody(req: IncomingMessage, limitBytes = 1_000_000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    req.on("data", (c: Buffer) => {
-      size += c.length;
-      if (size > limitBytes) {
-        reject(new Error("body too large"));
-        req.destroy();
-        return;
-      }
-      chunks.push(c);
-    });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
-  });
-}
-
-function sendJson(res: ServerResponse, status: number, body: unknown): void {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(body));
 }
 
 /**
@@ -146,7 +122,11 @@ export async function handleMission(
       sendJson(res, 404, { error: "talaria: mission not found", detail: `no mission-control task ${id}` });
       return;
     }
-    sendJson(res, 200, missionRecordFromTask(id!, task));
+    // Enrich the Conductor detail panel: mission-control has no conductor log stream,
+    // but the task's header + comments make a useful progress feed. Best-effort.
+    const commentsResp = (await mc.getTaskComments(id!).catch(() => null)) as { comments?: McComment[] } | null;
+    const lines = missionLines(id!, task, commentsResp?.comments ?? []);
+    sendJson(res, 200, missionRecordFromTask(id!, task, lines));
     return;
   }
 
@@ -169,11 +149,65 @@ export async function handleMission(
 /** Subset of the mission-control task fields Talaria maps from. */
 interface McTask {
   title?: string;
+  description?: string | null;
   status?: string;
+  priority?: string;
+  assigned_to?: string | null;
   outcome?: string | null;
   error_message?: string | null;
+  resolution?: string | null;
   ticket_ref?: string | null;
   updated_at?: number;
+}
+
+/** Subset of a mission-control task comment (GET /api/tasks/{id}/comments). */
+interface McComment {
+  author?: string;
+  content?: string;
+  created_at?: number;
+  replies?: McComment[];
+}
+
+/** ISO timestamp from a mission-control unix (seconds) time, or "" if absent. */
+function isoTime(secs?: number): string {
+  if (!secs) return "";
+  try {
+    return new Date(secs * 1000).toISOString().replace(".000Z", "Z");
+  } catch {
+    return "";
+  }
+}
+
+function clip(s: string, max = 200): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
+}
+
+/**
+ * Build the Conductor detail-panel lines (string[]) for a mission from its
+ * mission-control task + comments: a header (ticket, status, priority, assignee)
+ * followed by the comment feed, oldest first. Threaded comments are flattened.
+ */
+function missionLines(id: string, task: McTask, comments: McComment[]): string[] {
+  const lines: string[] = [
+    `mission-control ${task.ticket_ref ?? `task ${id}`} — ${task.title ?? ""}`.trimEnd(),
+    `status: ${task.status ?? "?"} · priority: ${task.priority ?? "?"} · assigned_to: ${task.assigned_to || "unassigned"}`,
+  ];
+  if (task.resolution) lines.push(`resolution: ${clip(task.resolution)}`);
+  if (task.error_message) lines.push(`error: ${clip(task.error_message)}`);
+
+  // Flatten one level of threading (mission-control threads are shallow), sort by time.
+  const flat: McComment[] = [];
+  for (const c of comments) {
+    flat.push(c);
+    for (const r of c.replies ?? []) flat.push(r);
+  }
+  flat.sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+  if (flat.length) lines.push("—");
+  for (const c of flat.slice(-40)) {
+    const when = isoTime(c.created_at);
+    lines.push(`${when ? when + " " : ""}${c.author ?? "?"}: ${clip(c.content ?? "")}`);
+  }
+  return lines;
 }
 
 /**
@@ -192,7 +226,7 @@ function missionStatusFromTask(task: McTask): "running" | "completed" | "failed"
 }
 
 /** Build the conductor mission record the workspace UI renders (conductor-spawn.ts:290). */
-function missionRecordFromTask(id: string, task: McTask): Record<string, unknown> {
+function missionRecordFromTask(id: string, task: McTask, lines: string[] = []): Record<string, unknown> {
   const status = missionStatusFromTask(task);
   return {
     id,
@@ -200,7 +234,7 @@ function missionRecordFromTask(id: string, task: McTask): Record<string, unknown
     status,
     error: task.error_message ?? null,
     session_id: task.ticket_ref ?? null,
-    lines: [], // mission-control has no conductor log stream; empty is safe (TODO(M3+): task comments)
+    lines, // header + comment feed from mission-control (empty array if none)
     exit_code: status === "completed" ? 0 : status === "failed" || status === "cancelled" ? 1 : null,
     updatedAt: task.updated_at,
   };

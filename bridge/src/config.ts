@@ -15,6 +15,8 @@ export interface TalariaConfig {
   missionControlUrl: string;
   /** mission-control API key (Bearer). Prefer the *_FILE docker-secret form. */
   missionControlApiKey: string;
+  /** Serve the workspace kanban board from mission-control (fleet view). Default on. */
+  kanbanFromMc: boolean;
 }
 
 function readSecret(fileEnv: string, valueEnv: string): string {
@@ -35,5 +37,6 @@ export function loadConfig(): TalariaConfig {
     dashboardUpstream: (process.env.TALARIA_DASHBOARD_UPSTREAM ?? "http://127.0.0.1:9119").replace(/\/$/, ""),
     missionControlUrl: (process.env.MISSION_CONTROL_URL ?? "").replace(/\/$/, ""),
     missionControlApiKey: readSecret("MISSION_CONTROL_API_KEY_FILE", "MISSION_CONTROL_API_KEY"),
+    kanbanFromMc: (process.env.TALARIA_KANBAN_FROM_MC ?? "1") !== "0",
   };
 }

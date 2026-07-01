@@ -75,5 +75,16 @@ mc "$MC/api/frameworks" | grep -q '"hermes"' \
   && pass "GET /api/frameworks lists hermes (HermesAdapter registered)" \
   || fail "hermes not listed in /api/frameworks"
 
+echo "== Fleet view: workspace kanban board served from mission-control =="
+board=$(curl -s "$BRIDGE/api/plugins/kanban/board")
+echo "$board" | grep -q '"columns"' && echo "$board" | grep -q '"in_progress"' \
+  && pass "GET /api/plugins/kanban/board → columns of mission-control tasks" \
+  || fail "kanban board not served from mission-control"
+kid=$(curl -s -X POST "$BRIDGE/api/plugins/kanban/tasks" -H 'Content-Type: application/json' \
+  -d '{"title":"verify-kanban-card","status":"inbox","priority":2}' | grep -oE '"id":"[0-9]+"' | grep -oE '[0-9]+' | head -1)
+[ -n "$kid" ] && pass "POST kanban card → created mission-control task $kid" || fail "kanban create failed"
+curl -s -X PATCH "$BRIDGE/api/plugins/kanban/tasks/$kid" -H 'Content-Type: application/json' -d '{"status":"in_progress"}' \
+  | grep -q '"status":"in_progress"' && pass "PATCH card inbox→in_progress (drag-to-move)" || fail "kanban move failed"
+
 echo
-echo "ALL PASS — Talaria M1/M2/M3/M4 verified against the running stack."
+echo "ALL PASS — Talaria M1/M2/M3/M4 + fleet kanban view verified against the running stack."

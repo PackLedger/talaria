@@ -57,7 +57,7 @@ answers and passing the other ~160 straight through. That's why it's so safe (mo
 
 | Path | Piece | What it does |
 |---|---|---|
-| [`bridge/`](./bridge) | **talaria-bridge** (Node/TS) | Sits in front of the dashboard `:9119`, serves the conductor routes, proxies the rest untouched. |
+| [`bridge/`](./bridge) | **talaria-bridge** (Node/TS) | Sits in front of the dashboard `:9119`, serves the conductor routes + the kanban board (from mission-control), proxies the rest untouched. |
 | [`plugin/talaria/`](./plugin/talaria) | **Talaria Hermes plugin** | Rides along on each agent (`plugins.enabled: [talaria]`). Registers the agent with mission-control, heartbeats for work, reports progress. One source dir, bind-mounted read-only into every agent. |
 | [`adapter/`](./adapter) | **mission-control adapter** | A `HermesAdapter` that makes Hermes a first-class framework inside mission-control. |
 | [`stack/`](./stack) | **docker stack** | Compose that wires workspace + mission-control + bridge onto the shared `edge` network. |
@@ -80,6 +80,22 @@ startup, an opt-in background heartbeat (`TALARIA_HEARTBEAT_SECONDS`) that polls
 `GET /api/agents/{id}/heartbeat` for assigned work, and `PUT /api/tasks/{id}` to report progress. It's
 distributed the "one source, N mounts" way: the plugin lives once in this repo and every agent
 bind-mounts that same directory read-only, so there's a single source of truth and no copy step.
+
+### The fleet board (see mission-control *inside* the workspace)
+
+The workspace's swarm/kanban board reads `/api/plugins/kanban/*` off the dashboard. Talaria serves
+those from mission-control instead, so that board becomes a live view of the whole MC fleet: columns
+are mission-control statuses (`inbox → assigned → in_progress → quality_review → done`), cards are MC
+tasks (with the assignee = which agent). It's full CRUD, so creating a card creates a task and
+dragging between columns moves it (dragging to `done` is politely refused, since that's the
+human/Aegis-gated step). This is on whenever a brain is configured; flip it off with
+`TALARIA_KANBAN_FROM_MC=0`. To get it you run in full-proxy mode (`HERMES_DASHBOARD_URL` → Talaria)
+so the kanban traffic actually passes through.
+
+**Honest limit:** the workspace's dedicated *agents-online* widget is fed by the Hermes gateway
+(`:8642`), which Talaria never touches, so that specific panel still shows gateway agents, not MC
+agents. The fleet *work* (tasks + who owns them) shows up on the board; a native MC agents-list panel
+would need an upstream addition.
 
 ## The "don't break anything" promise
 

@@ -17,6 +17,10 @@ All milestones below verified live against a running stack on 2026-07-01
     `POST /api/tasks`, response shaped for the Conductor.
   - **M3** status round-trip: `GET/DELETE /api/conductor/missions/{id}` poll + cancel, mapping
     mission-control task status → the workspace mission enum. Never forces the Aegis-gated `done`.
+- **Fleet board** — the bridge serves the workspace's `/api/plugins/kanban/*` surface from
+  mission-control, so the swarm/kanban board becomes a live view of the MC fleet (columns = MC
+  statuses, cards = MC tasks, full CRUD; `done` stays Aegis-gated). Toggle `TALARIA_KANBAN_FROM_MC=0`.
+  The conductor poll's `lines` are also enriched with the task's header + comment feed.
 - **Plugin** (`plugin/talaria/`, Hermes standalone) — per-agent mission-control adapter.
   - **M3** register (`POST /api/agents/register`) + opt-in background heartbeat
     (`TALARIA_HEARTBEAT_SECONDS`) that polls `/api/agents/{id}/heartbeat` + reports via
