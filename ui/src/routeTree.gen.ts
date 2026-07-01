@@ -17,8 +17,6 @@ import { Route as ApiConversationsRouteImport } from './routes/api/conversations
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiBoardsRouteImport } from './routes/api/boards'
 import { Route as ApiAgentsRouteImport } from './routes/api/agents'
-import { Route as AppTasksRouteImport } from './routes/_app/tasks'
-import { Route as AppSwarmRouteImport } from './routes/_app/swarm'
 import { Route as AppSkillsRouteImport } from './routes/_app/skills'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppMissionsRouteImport } from './routes/_app/missions'
@@ -31,6 +29,7 @@ import { Route as AppAlertsRouteImport } from './routes/_app/alerts'
 import { Route as AppAgentsRouteImport } from './routes/_app/agents'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppActivityRouteImport } from './routes/_app/activity'
+import { Route as AppBoardsIndexRouteImport } from './routes/_app/boards/index'
 import { Route as ApiTasksIdRouteImport } from './routes/api/tasks.$id'
 import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiBoardsIdRouteImport } from './routes/api/boards.$id'
@@ -40,6 +39,7 @@ import { Route as ApiAuthPasswordRouteImport } from './routes/api/auth/password'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
 import { Route as ApiAgentsRegisterRouteImport } from './routes/api/agents.register'
+import { Route as AppBoardsBoardIdRouteImport } from './routes/_app/boards/$boardId'
 import { Route as ApiTasksIdCommentsRouteImport } from './routes/api/tasks.$id.comments'
 import { Route as ApiBoardsIdTasksRouteImport } from './routes/api/boards.$id.tasks'
 import { Route as ApiBoardsIdMembersRouteImport } from './routes/api/boards.$id.members'
@@ -84,16 +84,6 @@ const ApiAgentsRoute = ApiAgentsRouteImport.update({
   id: '/api/agents',
   path: '/api/agents',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AppTasksRoute = AppTasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSwarmRoute = AppSwarmRouteImport.update({
-  id: '/swarm',
-  path: '/swarm',
-  getParentRoute: () => AppRoute,
 } as any)
 const AppSkillsRoute = AppSkillsRouteImport.update({
   id: '/skills',
@@ -155,6 +145,11 @@ const AppActivityRoute = AppActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AppRoute,
 } as any)
+const AppBoardsIndexRoute = AppBoardsIndexRouteImport.update({
+  id: '/boards/',
+  path: '/boards/',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiTasksIdRoute = ApiTasksIdRouteImport.update({
   id: '/api/tasks/$id',
   path: '/api/tasks/$id',
@@ -200,6 +195,11 @@ const ApiAgentsRegisterRoute = ApiAgentsRegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => ApiAgentsRoute,
 } as any)
+const AppBoardsBoardIdRoute = AppBoardsBoardIdRouteImport.update({
+  id: '/boards/$boardId',
+  path: '/boards/$boardId',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiTasksIdCommentsRoute = ApiTasksIdCommentsRouteImport.update({
   id: '/comments',
   path: '/comments',
@@ -241,13 +241,12 @@ export interface FileRoutesByFullPath {
   '/missions': typeof AppMissionsRoute
   '/settings': typeof AppSettingsRoute
   '/skills': typeof AppSkillsRoute
-  '/swarm': typeof AppSwarmRoute
-  '/tasks': typeof AppTasksRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
   '/api/boards': typeof ApiBoardsRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/fleet': typeof ApiFleetRoute
+  '/boards/$boardId': typeof AppBoardsBoardIdRoute
   '/api/agents/register': typeof ApiAgentsRegisterRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -257,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/api/boards/$id': typeof ApiBoardsIdRouteWithChildren
   '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/tasks/$id': typeof ApiTasksIdRouteWithChildren
+  '/boards/': typeof AppBoardsIndexRoute
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
@@ -277,14 +277,13 @@ export interface FileRoutesByTo {
   '/missions': typeof AppMissionsRoute
   '/settings': typeof AppSettingsRoute
   '/skills': typeof AppSkillsRoute
-  '/swarm': typeof AppSwarmRoute
-  '/tasks': typeof AppTasksRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
   '/api/boards': typeof ApiBoardsRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/fleet': typeof ApiFleetRoute
   '/': typeof AppIndexRoute
+  '/boards/$boardId': typeof AppBoardsBoardIdRoute
   '/api/agents/register': typeof ApiAgentsRegisterRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -294,6 +293,7 @@ export interface FileRoutesByTo {
   '/api/boards/$id': typeof ApiBoardsIdRouteWithChildren
   '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/tasks/$id': typeof ApiTasksIdRouteWithChildren
+  '/boards': typeof AppBoardsIndexRoute
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
@@ -316,14 +316,13 @@ export interface FileRoutesById {
   '/_app/missions': typeof AppMissionsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/skills': typeof AppSkillsRoute
-  '/_app/swarm': typeof AppSwarmRoute
-  '/_app/tasks': typeof AppTasksRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
   '/api/boards': typeof ApiBoardsRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/fleet': typeof ApiFleetRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/boards/$boardId': typeof AppBoardsBoardIdRoute
   '/api/agents/register': typeof ApiAgentsRegisterRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -333,6 +332,7 @@ export interface FileRoutesById {
   '/api/boards/$id': typeof ApiBoardsIdRouteWithChildren
   '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/tasks/$id': typeof ApiTasksIdRouteWithChildren
+  '/_app/boards/': typeof AppBoardsIndexRoute
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
@@ -356,13 +356,12 @@ export interface FileRouteTypes {
     | '/missions'
     | '/settings'
     | '/skills'
-    | '/swarm'
-    | '/tasks'
     | '/api/agents'
     | '/api/boards'
     | '/api/chat'
     | '/api/conversations'
     | '/api/fleet'
+    | '/boards/$boardId'
     | '/api/agents/register'
     | '/api/auth/google'
     | '/api/auth/logout'
@@ -372,6 +371,7 @@ export interface FileRouteTypes {
     | '/api/boards/$id'
     | '/api/conversations/$id'
     | '/api/tasks/$id'
+    | '/boards/'
     | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
     | '/api/boards/$id/members'
@@ -392,14 +392,13 @@ export interface FileRouteTypes {
     | '/missions'
     | '/settings'
     | '/skills'
-    | '/swarm'
-    | '/tasks'
     | '/api/agents'
     | '/api/boards'
     | '/api/chat'
     | '/api/conversations'
     | '/api/fleet'
     | '/'
+    | '/boards/$boardId'
     | '/api/agents/register'
     | '/api/auth/google'
     | '/api/auth/logout'
@@ -409,6 +408,7 @@ export interface FileRouteTypes {
     | '/api/boards/$id'
     | '/api/conversations/$id'
     | '/api/tasks/$id'
+    | '/boards'
     | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
     | '/api/boards/$id/members'
@@ -430,14 +430,13 @@ export interface FileRouteTypes {
     | '/_app/missions'
     | '/_app/settings'
     | '/_app/skills'
-    | '/_app/swarm'
-    | '/_app/tasks'
     | '/api/agents'
     | '/api/boards'
     | '/api/chat'
     | '/api/conversations'
     | '/api/fleet'
     | '/_app/'
+    | '/_app/boards/$boardId'
     | '/api/agents/register'
     | '/api/auth/google'
     | '/api/auth/logout'
@@ -447,6 +446,7 @@ export interface FileRouteTypes {
     | '/api/boards/$id'
     | '/api/conversations/$id'
     | '/api/tasks/$id'
+    | '/_app/boards/'
     | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
     | '/api/boards/$id/members'
@@ -527,20 +527,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/agents'
       preLoaderRoute: typeof ApiAgentsRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_app/tasks': {
-      id: '/_app/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof AppTasksRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/swarm': {
-      id: '/_app/swarm'
-      path: '/swarm'
-      fullPath: '/swarm'
-      preLoaderRoute: typeof AppSwarmRouteImport
-      parentRoute: typeof AppRoute
     }
     '/_app/skills': {
       id: '/_app/skills'
@@ -626,6 +612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppActivityRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/boards/': {
+      id: '/_app/boards/'
+      path: '/boards'
+      fullPath: '/boards/'
+      preLoaderRoute: typeof AppBoardsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/tasks/$id': {
       id: '/api/tasks/$id'
       path: '/api/tasks/$id'
@@ -689,6 +682,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsRegisterRouteImport
       parentRoute: typeof ApiAgentsRoute
     }
+    '/_app/boards/$boardId': {
+      id: '/_app/boards/$boardId'
+      path: '/boards/$boardId'
+      fullPath: '/boards/$boardId'
+      preLoaderRoute: typeof AppBoardsBoardIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/tasks/$id/comments': {
       id: '/api/tasks/$id/comments'
       path: '/comments'
@@ -740,9 +740,9 @@ interface AppRouteChildren {
   AppMissionsRoute: typeof AppMissionsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSkillsRoute: typeof AppSkillsRoute
-  AppSwarmRoute: typeof AppSwarmRoute
-  AppTasksRoute: typeof AppTasksRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppBoardsBoardIdRoute: typeof AppBoardsBoardIdRoute
+  AppBoardsIndexRoute: typeof AppBoardsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -758,9 +758,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppMissionsRoute: AppMissionsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSkillsRoute: AppSkillsRoute,
-  AppSwarmRoute: AppSwarmRoute,
-  AppTasksRoute: AppTasksRoute,
   AppIndexRoute: AppIndexRoute,
+  AppBoardsBoardIdRoute: AppBoardsBoardIdRoute,
+  AppBoardsIndexRoute: AppBoardsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

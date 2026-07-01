@@ -100,6 +100,15 @@ export const updateTask = (
     body: JSON.stringify(patch),
   }).then(j)
 
+export const renameBoard = (boardId: string, name: string) =>
+  fetch(`/api/boards/${boardId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ name }),
+  })
+export const deleteBoard = (boardId: string) =>
+  fetch(`/api/boards/${boardId}`, { method: 'DELETE', credentials: 'same-origin' })
 export const shareBoard = (boardId: string, email: string, role: 'editor' | 'viewer') =>
   post(`/api/boards/${boardId}/members`, { email, role })
 export const unshareBoard = (boardId: string, userId: string) =>
