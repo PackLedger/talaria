@@ -131,25 +131,38 @@ export async function unshareBoard(boardId: string, userId: string): Promise<voi
 }
 
 // ── Board-scoped agents ──────────────────────────────────────────────────────
-/** The agents allowed on a board (empty ⇒ all fleet agents allowed). */
-export async function listBoardAgents(boardId: string): Promise<string[]> {
-  const sql = await db()
-  const rows = await sql`select agent_model from board_agents where board_id = ${boardId} order by agent_model`
-  return (rows as unknown as Array<{ agent_model: string }>).map((r) => r.agent_model)
+export interface BoardAgentConfig {
+  allowAll: boolean
+  models: string[]
 }
 
-export async function setBoardAgents(boardId: string, models: string[]): Promise<void> {
+/** A board's agent policy: allow-all flag + the explicit allow-list. */
+export async function getBoardAgentConfig(boardId: string): Promise<BoardAgentConfig> {
+  const sql = await db()
+  const b = await sql`select allow_all_agents as "allowAll" from boards where id = ${boardId}`
+  const rows = await sql`select agent_model from board_agents where board_id = ${boardId} order by agent_model`
+  return {
+    allowAll: !!(b[0] as { allowAll?: boolean } | undefined)?.allowAll,
+    models: (rows as unknown as Array<{ agent_model: string }>).map((r) => r.agent_model),
+  }
+}
+
+export async function setBoardAgentConfig(boardId: string, allowAll: boolean, models: string[]): Promise<void> {
   const sql = await db()
   await sql.begin(async (tx) => {
+    await tx`update boards set allow_all_agents = ${allowAll} where id = ${boardId}`
     await tx`delete from board_agents where board_id = ${boardId}`
-    for (const m of models) {
-      await tx`insert into board_agents (board_id, agent_model) values (${boardId}, ${m}) on conflict do nothing`
+    if (!allowAll) {
+      for (const m of models) {
+        await tx`insert into board_agents (board_id, agent_model) values (${boardId}, ${m}) on conflict do nothing`
+      }
     }
   })
 }
 
-/** Whether an agent may be assigned on a board (open by default). */
+/** Whether an agent may be assigned on a board. Restrictive by default — a board
+ *  allows an agent only if allow-all is on OR the agent is explicitly listed. */
 export async function boardAllowsAgent(boardId: string, model: string): Promise<boolean> {
-  const list = await listBoardAgents(boardId)
-  return list.length === 0 || list.includes(model)
+  const cfg = await getBoardAgentConfig(boardId)
+  return cfg.allowAll || cfg.models.includes(model)
 }

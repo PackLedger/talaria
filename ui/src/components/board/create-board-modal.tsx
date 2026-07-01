@@ -5,8 +5,7 @@ import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Avatar } from '@/components/ui/avatar'
-import { cn } from '@/lib/cn'
+import { Combobox } from '@/components/ui/combobox'
 import { useAgents } from '@/lib/agents'
 import { useTeams } from '@/lib/teams'
 import { createBoard, setBoardAgents, shareBoard } from '@/lib/boards'
@@ -14,40 +13,34 @@ import { createBoard, setBoardAgents, shareBoard } from '@/lib/boards'
 type Invite = { email: string; role: 'editor' | 'viewer' }
 
 // Create a board and configure everything up front: owner (personal/team),
-// which agents may work it, and who to invite.
+// which agents may work it (restrictive by default — opt into "all agents"),
+// and who to invite.
 export function CreateBoardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { data: fleet } = useAgents()
   const { data: teams = [] } = useTeams()
-  const agents = fleet?.agents ?? []
+  const agentOptions = (fleet?.agents ?? []).map((a) => ({ value: a.id, label: a.label, sub: a.role }))
 
   const [name, setName] = useState('')
   const [teamId, setTeamId] = useState('')
-  const [selectedAgents, setSelectedAgents] = useState<Set<string>>(new Set())
+  const [allowAll, setAllowAll] = useState(false)
+  const [agents, setAgents] = useState<string[]>([])
   const [invites, setInvites] = useState<Invite[]>([])
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'editor' | 'viewer'>('editor')
   const [busy, setBusy] = useState(false)
 
-  const reset = () => {
+  const close = () => {
     setName('')
     setTeamId('')
-    setSelectedAgents(new Set())
+    setAllowAll(false)
+    setAgents([])
     setInvites([])
     setEmail('')
-  }
-  const close = () => {
-    reset()
     onClose()
   }
 
-  const toggleAgent = (id: string) =>
-    setSelectedAgents((s) => {
-      const n = new Set(s)
-      n.has(id) ? n.delete(id) : n.add(id)
-      return n
-    })
   const addInvite = () => {
     const e = email.trim().toLowerCase()
     if (!e || invites.some((i) => i.email === e)) return
@@ -61,7 +54,7 @@ export function CreateBoardModal({ open, onClose }: { open: boolean; onClose: ()
     setBusy(true)
     try {
       const { board } = await createBoard(n, teamId || null)
-      if (selectedAgents.size) await setBoardAgents(board.id, [...selectedAgents])
+      await setBoardAgents(board.id, allowAll, allowAll ? [] : agents)
       for (const inv of invites) await shareBoard(board.id, inv.email, inv.role).catch(() => {})
       await qc.invalidateQueries({ queryKey: ['boards'] })
       close()
@@ -79,7 +72,7 @@ export function CreateBoardModal({ open, onClose }: { open: boolean; onClose: ()
       width="max-w-lg"
       footer={
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted">{selectedAgents.size === 0 ? 'All agents allowed' : `${selectedAgents.size} agents`}</span>
+          <span className="text-xs text-muted">{allowAll ? 'All agents allowed' : `${agents.length} agents`}</span>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={close}>Cancel</Button>
             <Button size="sm" onClick={() => void create()} disabled={busy || !name.trim()}>Create board</Button>
@@ -101,19 +94,14 @@ export function CreateBoardModal({ open, onClose }: { open: boolean; onClose: ()
           </Select>
         </Field>
 
-        <Field label="Agents" hint="Leave all unchecked to allow the whole fleet.">
-          <ul className="max-h-40 space-y-0.5 overflow-y-auto rounded-lg border border-line-subtle p-1">
-            {agents.map((a) => (
-              <li key={a.id}>
-                <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-card">
-                  <input type="checkbox" checked={selectedAgents.has(a.id)} onChange={() => toggleAgent(a.id)} className="accent-[color:var(--theme-accent)]" />
-                  <Avatar name={a.label} className="h-5 w-5" />
-                  <span className="min-w-0 flex-1 truncate text-sm text-fg">{a.label}</span>
-                  <span className="text-xs text-muted">{a.role}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
+        <Field label="Agents">
+          <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm text-fg">
+            <input type="checkbox" checked={allowAll} onChange={(e) => setAllowAll(e.target.checked)} className="accent-[color:var(--theme-accent)]" />
+            Allow all agents
+          </label>
+          {!allowAll && (
+            <Combobox options={agentOptions} selected={agents} onChange={setAgents} multiple placeholder="Select agents…" />
+          )}
         </Field>
 
         <Field label="Invite (optional)">
@@ -128,7 +116,7 @@ export function CreateBoardModal({ open, onClose }: { open: boolean; onClose: ()
           {invites.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {invites.map((i) => (
-                <span key={i.email} className={cn('flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-muted')}>
+                <span key={i.email} className="flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-muted">
                   {i.email} · {i.role}
                   <button onClick={() => setInvites((prev) => prev.filter((x) => x.email !== i.email))} className="hover:text-[color:var(--theme-danger)]">✕</button>
                 </span>
@@ -141,14 +129,11 @@ export function CreateBoardModal({ open, onClose }: { open: boolean; onClose: ()
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <div className="mb-1 flex items-baseline gap-2">
-        <span className="text-xs uppercase tracking-wide text-muted">{label}</span>
-        {hint && <span className="text-[11px] text-muted opacity-70">{hint}</span>}
-      </div>
+    <div>
+      <div className="mb-1 text-xs uppercase tracking-wide text-muted">{label}</div>
       {children}
-    </label>
+    </div>
   )
 }

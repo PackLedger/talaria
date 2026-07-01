@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select } from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 import { Markdown } from '@/components/ui/markdown'
 import { useAgents } from '@/lib/agents'
 import { useSession } from '@/lib/session'
@@ -30,11 +31,12 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
   const { data } = useTask(taskId)
   const { data: fleet } = useAgents()
   const { data: user } = useSession()
-  const { data: boardAgents = [] } = useBoardAgents(board.id)
+  const { data: boardCfg } = useBoardAgents(board.id)
   const allAgents = fleet?.agents ?? []
-  // Restrict the assignee list to the board's allowed agents (empty ⇒ all).
-  const agents = boardAgents.length ? allAgents.filter((a) => boardAgents.includes(a.id)) : allAgents
+  // Restrict the assignee list to the board's agent policy (allow-all or list).
+  const agents = boardCfg?.allowAll ? allAgents : allAgents.filter((a) => boardCfg?.models.includes(a.id))
   const canEdit = board.role === 'owner' || board.role === 'editor'
+  const assigneeOptions = [{ value: '', label: 'Unassigned' }, ...agents.map((a) => ({ value: a.id, label: a.label, sub: a.role }))]
   const me = user?.email ?? user?.name ?? ''
 
   const [title, setTitle] = useState('')
@@ -177,10 +179,13 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                   </Select>
                 </Prop>
                 <Prop label="Assignee">
-                  <Select value={t.assignedTo ?? ''} disabled={!canEdit} onChange={(e) => save({ assignedTo: e.target.value || null })} className="w-full">
-                    <option value="">Unassigned</option>
-                    {agents.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-                  </Select>
+                  <Combobox
+                    options={assigneeOptions}
+                    selected={t.assignedTo ? [t.assignedTo] : []}
+                    onChange={(arr) => canEdit && save({ assignedTo: arr[0] || null })}
+                    disabled={!canEdit}
+                    placeholder="Unassigned"
+                  />
                 </Prop>
                 <Prop label="Due date">
                   <Input type="date" value={t.dueDate ? t.dueDate.slice(0, 10) : ''} disabled={!canEdit}
