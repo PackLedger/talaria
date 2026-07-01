@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { RichEditor } from '@/components/ui/rich-editor'
+import { RichEditor, type RichEditorHandle } from '@/components/ui/rich-editor'
 import { Select } from '@/components/ui/select'
 import { Combobox } from '@/components/ui/combobox'
 import { Markdown } from '@/components/ui/markdown'
@@ -40,10 +40,8 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
   const me = user?.email ?? user?.name ?? ''
 
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
-  const [comment, setComment] = useState('')
-  const [commentKey, setCommentKey] = useState(0)
+  const commentRef = useRef<RichEditorHandle>(null)
 
   // Initialise editable fields ONCE per task (not on every refetch) so live
   // updates behind the modal don't reset what the user is typing.
@@ -52,7 +50,6 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
     if (data?.task && loadedRef.current !== data.task.id) {
       loadedRef.current = data.task.id
       setTitle(data.task.title)
-      setDescription(data.task.description ?? '')
       setTags(data.task.tags.join(', '))
     }
   }, [data?.task])
@@ -119,8 +116,9 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                       key={`desc-${t.id}`}
                       value={t.description ?? ''}
                       editable={canEdit}
-                      onChange={setDescription}
-                      onBlur={() => description !== (t.description ?? '') && save({ description: description || null })}
+                      onSave={(md) => {
+                        if (canEdit && md !== (t.description ?? '')) save({ description: md || null })
+                      }}
                       placeholder="Add detail…"
                       minHeight="16rem"
                     />
@@ -149,24 +147,15 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                       {data!.comments.length === 0 && <li className="text-xs text-muted">No comments yet.</li>}
                     </ul>
                     <div className="mt-2">
-                      <RichEditor
-                        key={`comment-${commentKey}`}
-                        value=""
-                        editable
-                        onChange={setComment}
-                        placeholder="Write a comment…"
-                        minHeight="3rem"
-                      />
+                      <RichEditor ref={commentRef} key={`comment-${t.id}`} value="" editable placeholder="Write a comment…" minHeight="3rem" />
                       <div className="mt-1 flex justify-end">
                         <Button
                           size="sm"
-                          disabled={!comment.trim()}
                           onClick={() => {
-                            const c = comment.trim()
-                            if (!c) return
-                            setComment('')
-                            setCommentKey((k) => k + 1)
-                            void addComment(taskId, c).then(refresh)
+                            const md = (commentRef.current?.getMarkdown() ?? '').trim()
+                            if (!md) return
+                            commentRef.current?.clear()
+                            void addComment(taskId, md).then(refresh)
                           }}
                         >
                           Send
