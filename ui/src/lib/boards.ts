@@ -47,25 +47,30 @@ export function useBoardTasks(boardId: string | null) {
   })
 }
 
-/** The board's allowed-agent list (empty array ⇒ all fleet agents allowed). */
+export interface BoardAgentConfig {
+  allowAll: boolean
+  models: string[]
+}
+
+/** The board's agent policy (restrictive by default: allowAll off, no models). */
 export function useBoardAgents(boardId: string | null) {
   return useQuery({
     queryKey: ['board-agents', boardId],
     enabled: !!boardId,
-    queryFn: async (): Promise<string[]> => {
+    queryFn: async (): Promise<BoardAgentConfig> => {
       const r = await fetch(`/api/boards/${boardId}/agents`, { credentials: 'same-origin' })
-      if (!r.ok) return []
-      return (await r.json()).models
+      if (!r.ok) return { allowAll: false, models: [] }
+      return r.json()
     },
   })
 }
 
-export const setBoardAgents = (boardId: string, models: string[]) =>
+export const setBoardAgents = (boardId: string, allowAll: boolean, models: string[]) =>
   fetch(`/api/boards/${boardId}/agents`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ models }),
+    body: JSON.stringify({ allowAll, models }),
   }).then(j)
 
 export function useBoardMembers(boardId: string | null) {

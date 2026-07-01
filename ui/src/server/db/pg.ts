@@ -171,13 +171,14 @@ const MIGRATIONS: string[] = [
      notes text,
      created_at timestamptz not null default now()
    )`,
-  // Board-scoped agents — which fleet agents may be assigned on a board.
-  // No rows for a board ⇒ all fleet agents allowed (open by default).
+  // Board-scoped agents — which fleet agents may be assigned on a board. Access
+  // is either "allow all" (explicit flag) OR the specific board_agents list.
   `create table if not exists board_agents (
      board_id uuid not null references boards(id) on delete cascade,
      agent_model text not null,
      primary key (board_id, agent_model)
    )`,
+  `alter table boards add column if not exists allow_all_agents boolean not null default false`,
 ]
 
 function ensureMigrated(): Promise<void> {
