@@ -15,6 +15,11 @@
     "@tanstack/react-router": "1.166.7",
     "@tanstack/react-router-ssr-query": "1.166.7",
     "@tanstack/react-start": "1.166.8",
+    "@tiptap/extension-link": "^2.27.2",
+    "@tiptap/extension-placeholder": "^2.27.2",
+    "@tiptap/pm": "^2.27.2",
+    "@tiptap/react": "^2.27.2",
+    "@tiptap/starter-kit": "^2.27.2",
     "clsx": "^2.1.1",
     "framer-motion": "^12.36.0",
     "highlight.js": "^11.11.1",
@@ -27,6 +32,7 @@
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.4.0",
+    "tiptap-markdown": "^0.8.10",
     "zod": "^4.3.6"
   },
   "devDependencies": {
