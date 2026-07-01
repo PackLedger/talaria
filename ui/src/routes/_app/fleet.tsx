@@ -17,10 +17,7 @@ function FleetOverview() {
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="mx-auto max-w-5xl space-y-6">
-        <div>
-          <h1 className="mercury-text text-2xl font-semibold">Fleet overview</h1>
-          <p className="text-sm text-muted">Talaria-native usage across the fleet.</p>
-        </div>
+        <h1 className="mercury-text text-2xl font-semibold">Fleet</h1>
 
         {isLoading ? (
           <div className="text-sm text-muted">Loading fleet…</div>
@@ -59,11 +56,6 @@ function FleetOverview() {
                 ))}
               </ul>
             </Panel>
-
-            <p className="text-xs text-muted">
-              Owned by Talaria: fleet from the gateway plane, usage + live status from our own Postgres
-              (agents register + heartbeat to Talaria). Task queue and cost/tokens are the next rips.
-            </p>
           </>
         )}
       </div>

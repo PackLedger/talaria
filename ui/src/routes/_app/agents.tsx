@@ -14,10 +14,7 @@ function AgentsRoster() {
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="mx-auto max-w-5xl space-y-6">
-        <div>
-          <h1 className="mercury-text text-2xl font-semibold">Agents</h1>
-          <p className="text-sm text-muted">The fleet roster and how each agent is used through Talaria.</p>
-        </div>
+        <h1 className="mercury-text text-2xl font-semibold">Agents</h1>
 
         {isLoading ? (
           <div className="text-sm text-muted">Loading agents…</div>
@@ -62,11 +59,6 @@ function AgentsRoster() {
             </table>
           </Panel>
         )}
-
-        <p className="text-xs text-muted">
-          Status + last-seen come from Talaria's own agent registry (agents register + heartbeat to
-          Talaria). Next rip: task queue (counts) and the token/cost ledger.
-        </p>
       </div>
     </div>
   )
