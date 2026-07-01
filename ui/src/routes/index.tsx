@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
 import { Brand } from '@/components/brand'
 import { MercuryBackdrop } from '@/components/mercury-backdrop'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { AgentPicker } from '@/components/chat/agent-picker'
+import { ChatView } from '@/components/chat/chat-view'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Panel } from '@/components/ui/panel'
+import { useAgents } from '@/lib/agents'
 import { useLogout, useSession } from '@/lib/session'
 
 export const Route = createFileRoute('/')({
@@ -17,6 +18,15 @@ function Cockpit() {
   const { data: user, isLoading, isSuccess } = useSession()
   const navigate = useNavigate()
   const logout = useLogout()
+
+  const { data: fleet, isLoading: agentsLoading } = useAgents()
+  const agents = useMemo(() => fleet?.agents ?? [], [fleet])
+  const [selected, setSelected] = useState<string | null>(null)
+
+  // Default to the first agent once the fleet loads.
+  useEffect(() => {
+    if (!selected && agents[0]) setSelected(agents[0].id)
+  }, [agents, selected])
 
   // Gate: no session → login.
   useEffect(() => {
@@ -32,18 +42,28 @@ function Cockpit() {
     )
   }
 
+  const current = agents.find((a) => a.id === selected)
+
   return (
     <>
       <MercuryBackdrop />
-      <div className="flex min-h-screen flex-col">
+      <div className="flex h-screen flex-col">
         {/* Top bar */}
-        <header className="flex items-center justify-between border-b border-line-subtle px-6 py-3 backdrop-blur">
-          <Brand />
+        <header className="flex items-center justify-between gap-3 border-b border-line-subtle px-6 py-3 backdrop-blur">
+          <div className="flex items-center gap-4">
+            <Brand />
+            <AgentPicker agents={agents} value={selected} onChange={setSelected} loading={agentsLoading} />
+            {fleet?.source === 'mock' && (
+              <span className="rounded-full border border-line px-2 py-0.5 text-xs text-muted">mock</span>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <div className="flex items-center gap-2 rounded-full border border-line bg-card py-1 pl-1 pr-3">
               <Avatar src={user.picture} name={user.name ?? user.email} />
-              <span className="max-w-[12rem] truncate text-sm text-fg">{user.name ?? user.email}</span>
+              <span className="hidden max-w-[12rem] truncate text-sm text-fg sm:block">
+                {user.name ?? user.email}
+              </span>
             </div>
             <Button variant="ghost" size="sm" onClick={() => void logout()}>
               Sign out
@@ -51,23 +71,15 @@ function Cockpit() {
           </div>
         </header>
 
-        {/* Placeholder cockpit — the P2.1 agent picker + streaming chat land here. */}
-        <main className="flex flex-1 items-center justify-center px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Panel className="max-w-lg p-8 text-center">
-              <h1 className="mercury-text mb-2 text-2xl font-semibold">
-                Welcome aboard, {(user.name ?? user.email ?? 'pilot').split(' ')[0]}.
-              </h1>
-              <p className="text-sm text-muted">
-                You’re signed in via <span className="text-accent">{user.provider}</span>. The agent
-                picker and streaming chat cockpit (P2.1) plug in here next.
-              </p>
-            </Panel>
-          </motion.div>
+        {/* Chat cockpit */}
+        <main className="min-h-0 flex-1">
+          {selected && current ? (
+            <ChatView key={selected} model={selected} agentLabel={current.label} />
+          ) : (
+            <div className="grid h-full place-items-center text-sm text-muted">
+              {agentsLoading ? 'Loading the fleet…' : 'No agents available.'}
+            </div>
+          )}
         </main>
       </div>
     </>
