@@ -56,6 +56,27 @@ chat/agents runtime) are deliberately untouched and would need a small upstream 
 
 Legend: ✅ done · 🟡 bridge-only, buildable now · 🔵 needs an upstream hermes-workspace change · ⚪ out of scope by design.
 
+## Phase 2 — one product, its own identity (bookmarked)
+
+Today Talaria is the *seam* between two external UIs. The real flex is making it a **product** with its
+own UI and its own identity. Not a fork of either upstream (that's a maintenance trap), but our own
+frontend that **pulls in just the bits we need** from each (both are MIT, so we can lift components
+freely) and drops the rest. One app, two faces:
+
+- **Simple view (for normies):** the friendly cockpit. Pick an agent, chat, kick off a mission, watch
+  it go. Nothing scary.
+- **Advanced view (for harness maintainers):** the full ops console. Fleet health, cost/token
+  governance, RBAC, the task queue, telemetry, the works.
+
+Same brain underneath (the two-plane bridge from Phase 1 becomes the internal API), one login, one
+design language, one release, no upstream to track. We cherry-pick the good components (the chat/agent
+UX from hermes-workspace, the ops/board/cost views from mission-control), rebuild the shell around
+them, and own the whole experience.
+
+Open questions for when we start: which components are worth lifting vs. rebuilding, where the "simple ↔
+advanced" toggle lives, and branding. Phase 1 (this repo as a framework in front of the two real tools)
+stays the on-ramp for people who already run them.
+
 ## Still on the wishlist
 
 - **Decomposed and broadcast missions.** Those go through the workspace's *local* `:3000` endpoints,
