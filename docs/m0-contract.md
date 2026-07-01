@@ -139,13 +139,27 @@ Source-read 2026-06-30 (shallow clones in scratch; not vendored):
   *How it was verified:* `talaria/stack` brought up on the `edge` net (bridge → live `kanban-dashboard`
   pass-through; workspace → bridge; mission-control built from `talaria/vendor/mission-control`). Auth:
   bridge + mission-control share `MISSION_CONTROL_API_KEY` (`x-api-key`).
+- **M3 poll/cancel ✅ (verified live 2026-07-01):** `GET /api/conductor/missions/{id}` returns the
+  mission record the Conductor UI renders (`conductor-spawn.ts:290`) — `{id,name,status,error,
+  session_id,lines,exit_code,updatedAt}` — with `status` mapped from the mission-control task:
+  `done|outcome=success → completed`, `outcome=abandoned → cancelled`, `outcome=failed|error_message →
+  failed`, else `running` (workspace enum: `running|completed|failed|cancelled`, terminal sets in
+  `use-conductor-gateway.ts`). `DELETE /api/conductor/missions/{id}` cancels via
+  `PUT outcome=abandoned`. Verified: create→poll `running`→cancel→poll `cancelled` (exit_code 1);
+  unknown id → 404.
+
+  **Governance finding:** mission-control gates the `done` transition behind **Aegis approval**
+  ("Aegis approval is required to move task to done"). Talaria deliberately does NOT bypass it — it
+  never forces `done`; completion flows through mission-control's (human) approval, which maps to
+  `completed` on the next poll. This matches PackLedger's human-only-Done posture ([[plane-lifecycle]]).
 
 ## Open items (ranked)
 
-1. **M3 — poll/cancel:** `GET/DELETE /api/conductor/missions/{id}` → map mission-control task status →
-   the workspace mission-state enum (currently 501). Confirm the enum against a live remote mission.
-2. **M3 — parity:** decomposed/broadcast dispatch is workspace-local (`:3000`), not via the dashboard —
-   full parity needs the `HERMES_MISSION_API_URL` upstream PR (recommended) or a second local seam.
-3. **M3 — the adapter half:** wire the Talaria plugin's register/heartbeat/report on the live fleet
+1. **M3 — decomposition/broadcast parity:** those dispatch flavors are workspace-local (`:3000`),
+   not via the dashboard — full parity needs the `HERMES_MISSION_API_URL` upstream PR (recommended)
+   or a second local seam. (Single-mission conductor path is done.)
+2. **M3 — the adapter half:** wire the Talaria plugin's register/heartbeat/report on the live fleet
    (currently no-op) so agents pull assigned work from mission-control.
+3. **M3 — mission log lines:** the poll record's `lines: []` is empty (mission-control has no conductor
+   log stream); optionally surface task comments/activity there.
 4. **M5:** pin the mission-control build (commit) + fold in upstream hardening; compatibility matrix.

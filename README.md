@@ -9,10 +9,11 @@ fleet manager — as its orchestration brain, **without forking or modifying eit
 
 The full design rationale, verification status, and milestone plan live in [`PLAN.md`](./PLAN.md).
 
-> **Status:** M0–M2 done and **verified live** (2026-07-01). Pass-through proxies the real Hermes
-> dashboard; the conductor capability-probe (`GET /api/conductor/missions`) is served; and a mission
-> `POST` round-trips to a real mission-control task. See [`docs/m0-contract.md`](./docs/m0-contract.md)
-> and [Milestones](#milestones). Next: M3 (poll/cancel + decomposition parity + the plugin adapter half).
+> **Status:** M0–M3 (single-mission path) done and **verified live** (2026-07-01). Pass-through
+> proxies the real Hermes dashboard; the conductor capability-probe is served; and mission
+> create/poll/cancel round-trip to real mission-control tasks (respecting its Aegis human-gated Done).
+> See [`docs/m0-contract.md`](./docs/m0-contract.md) and [Milestones](#milestones). Remaining: decomposed/
+> broadcast parity (`HERMES_MISSION_API_URL` PR) + the per-agent plugin adapter half on the live fleet.
 
 ---
 
@@ -80,8 +81,10 @@ Talaria must never break Hermes's native behavior. The blast radius is deliberat
   conductor capability-probe is `GET /api/conductor/missions` (200+JSON ⇒ available), now served.
 - **M2 — Mission translation ✅ (verified live):** `POST /api/conductor/missions` → mission-control
   `POST /api/tasks`; a mission round-trips to the board (`TASK-001`).
-- **M3 — Decomposition + broadcast + status round-trip:** poll/cancel status mapping; decomposed/
-  broadcast parity (the `HERMES_MISSION_API_URL` PR); wire the plugin adapter half on the live fleet.
+- **M3 — Status round-trip ✅ (verified live):** `GET/DELETE /api/conductor/missions/{id}` poll +
+  cancel round-trip (status mapped from the mission-control task; `done` stays Aegis-gated, not
+  bypassed). **Remaining:** decomposed/broadcast parity (the `HERMES_MISSION_API_URL` PR) + wiring the
+  plugin adapter half on the live fleet.
 - **M4 — Package as Hermes plugin + mission-control adapter PR.**
 - **M5 — OSS release:** MIT, README, compat matrix, `docker compose` demo.
 

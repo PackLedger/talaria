@@ -46,6 +46,11 @@ export class MissionControlClient {
     return this.request("POST", "/api/tasks", task);
   }
 
+  /** Fetch one task: GET /api/tasks/{id} → { task: {...} }. */
+  getTask(id: string | number): Promise<unknown> {
+    return this.request("GET", `/api/tasks/${encodeURIComponent(String(id))}`);
+  }
+
   /** Update/report a task: PUT /api/tasks/{id} with {status, outcome, ...}. */
   updateTask(id: string | number, patch: Record<string, unknown>): Promise<unknown> {
     return this.request("PUT", `/api/tasks/${encodeURIComponent(String(id))}`, patch);

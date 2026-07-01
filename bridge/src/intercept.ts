@@ -135,10 +135,73 @@ export async function handleMission(
     return;
   }
 
-  // GET {id} (poll) / DELETE {id} (cancel): need the MC-status → workspace-state map
-  // verified against a live workspace before shipping (avoid a guessed enum). M3.
-  sendJson(res, 501, {
-    error: "talaria: conductor poll/cancel not yet implemented (M3)",
-    mission_id: id,
-  });
+  // GET /api/conductor/missions/{id} — poll status. The workspace passes this
+  // record straight through to the Conductor UI, which reads {id,name,status,error,
+  // lines,exit_code,session_id,updatedAt}. status ∈ running|completed|failed (M3,
+  // mapped from mission-control task status; see missionStatusFromTask).
+  if (method === "GET") {
+    const got = (await mc.getTask(id!).catch(() => null)) as { task?: McTask } | null;
+    const task = got?.task;
+    if (!task) {
+      sendJson(res, 404, { error: "talaria: mission not found", detail: `no mission-control task ${id}` });
+      return;
+    }
+    sendJson(res, 200, missionRecordFromTask(id!, task));
+    return;
+  }
+
+  // DELETE /api/conductor/missions/{id} — cancel. The workspace only checks res.ok.
+  // mission-control has no 'cancelled' task state, and moving to 'done' needs Aegis
+  // (quality-gate) approval — which we must NOT bypass. So we record cancellation via
+  // outcome='abandoned' (valid enum: success|failed|partial|abandoned) WITHOUT forcing
+  // the status, and map outcome→'cancelled' on poll. Best-effort; always return ok.
+  if (method === "DELETE") {
+    await mc
+      .updateTask(id!, { outcome: "abandoned", resolution: "Cancelled via hermes-workspace Conductor" })
+      .catch(() => undefined);
+    sendJson(res, 200, { ok: true, id });
+    return;
+  }
+
+  sendJson(res, 405, { error: "talaria: method not allowed on conductor route" });
+}
+
+/** Subset of the mission-control task fields Talaria maps from. */
+interface McTask {
+  title?: string;
+  status?: string;
+  outcome?: string | null;
+  error_message?: string | null;
+  ticket_ref?: string | null;
+  updated_at?: number;
+}
+
+/**
+ * mission-control task status → the workspace mission status enum. The workspace
+ * treats {completed} as terminal-success and {failed,cancelled} as terminal-failure
+ * (use-conductor-gateway.ts). Outcome is checked FIRST because it's terminal regardless
+ * of status: a cancel sets outcome='abandoned' without forcing 'done' (Aegis-gated).
+ * mission-control outcome enum: success|failed|partial|abandoned; status reaching 'done'
+ * requires human/Aegis approval (we never bypass it — completion flows through naturally).
+ */
+function missionStatusFromTask(task: McTask): "running" | "completed" | "failed" | "cancelled" {
+  if (task.outcome === "abandoned") return "cancelled";
+  if (task.outcome === "failed" || task.error_message) return "failed";
+  if (task.status === "done" || task.outcome === "success") return "completed";
+  return "running"; // inbox | assigned | in_progress | quality_review
+}
+
+/** Build the conductor mission record the workspace UI renders (conductor-spawn.ts:290). */
+function missionRecordFromTask(id: string, task: McTask): Record<string, unknown> {
+  const status = missionStatusFromTask(task);
+  return {
+    id,
+    name: task.title ?? id,
+    status,
+    error: task.error_message ?? null,
+    session_id: task.ticket_ref ?? null,
+    lines: [], // mission-control has no conductor log stream; empty is safe (TODO(M3+): task comments)
+    exit_code: status === "completed" ? 0 : status === "failed" || status === "cancelled" ? 1 : null,
+    updatedAt: task.updated_at,
+  };
 }
