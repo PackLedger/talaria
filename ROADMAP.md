@@ -49,7 +49,8 @@ chat/agents runtime) are deliberately untouched and would need a small upstream 
 | Dashboard overview — status/agent tiles | dashboard `/api/status` | 🟡 bridge-able by augmenting the passthrough — not yet built |
 | Cost / tokens | MC `/api/tokens/by-agent` exists, but the workspace has no dashboard-fed cost surface to inject into | 🔵 needs upstream hook |
 | **Per-agent chat (any agent, one workspace)** | gateway `/v1/chat/completions` | ✅ done (gateway plane, model-routed) |
-| Per-agent sessions / agents-online widget | gateway (needs the model selector) | 🟡 routes to the default agent today; per-agent session routing is next |
+| Per-agent sessions / history | gateway `/api/sessions*` | ✅ done (merged fleet-wide, agent-tagged, routed by namespaced key) |
+| Agents-online widget | gateway (no model selector) | 🟡 still resolves to the default agent |
 | Chat / streaming | gateway `/v1/*` | ✅ multiplexed by the gateway plane (native streaming preserved) |
 | Skills / MCP / config / memory | local + gateway | ⚪ stays Hermes-native by design |
 

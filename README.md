@@ -121,10 +121,13 @@ in the model switcher; picking one routes the whole chat to that agent's real ga
 streaming, that agent's memory and skills, all intact). No per-user setup, no juggling tabs, no
 workspace fork. Add or remove agents by editing the fleet manifest.
 
-**Current edges (honest):** the *chat* path is fully per-agent (routed by model). The other gateway
-calls the workspace makes for a selected agent (its own sessions list, the agents-online widget) still
-resolve against the fleet's *default* agent, since those calls don't carry the model selector yet.
-Per-agent session routing is the next step; the primary "talk to any agent" flow works today.
+Sessions come along for the ride: the session sidebar is a **fleet-wide history**, merged across every
+agent and tagged by who owns each conversation (with per-agent token/cost right on the card). Open any
+session and Talaria routes it back to the agent it belongs to.
+
+**Current edge (honest):** the dedicated *agents-online* widget still resolves against the fleet's
+*default* agent, since that call doesn't carry the model selector. Chat and sessions are fully
+per-agent today; that one widget is the remaining bit.
 
 ## The "don't break anything" promise
 

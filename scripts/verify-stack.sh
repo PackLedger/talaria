@@ -93,6 +93,10 @@ echo "$models" | grep -q '"object":"model"' \
   && pass "GET /v1/models lists the fleet ($(echo "$models" | grep -oE '"id":"[^"]+"' | wc -l | tr -d ' ') agents)" \
   || fail "gateway plane /v1/models not served"
 curl -s "$GW/health" | grep -q '"ok":true' && pass "gateway plane /health ok" || fail "gateway plane health failed"
+sess=$(curl -s "$GW/api/sessions?limit=10")
+echo "$sess" | grep -q '"agent"' && echo "$sess" | grep -q '::' \
+  && pass "GET /api/sessions merged across the fleet (agent-tagged, namespaced keys)" \
+  || fail "sessions not merged/namespaced across the fleet"
 
 echo
 echo "ALL PASS — Talaria M1-M4 + fleet kanban + gateway multiplexer verified against the running stack."

@@ -25,6 +25,7 @@ import httpProxy from "http-proxy";
 
 import type { TalariaConfig, FleetAgent } from "./config.js";
 import { readBody, sendJson } from "./http-util.js";
+import { handleSessionsList, handleSessionByKey, isNamespacedSession } from "./sessions.js";
 
 function agentForModel(cfg: TalariaConfig, model: string): FleetAgent | undefined {
   return cfg.fleet.find((a) => a.model === model);
@@ -118,6 +119,21 @@ export function startGatewayPlane(cfg: TalariaConfig): http.Server | null {
     }
     if (method === "GET" && (path === "/health" || path === "/__talaria/health")) {
       return sendJson(res, 200, { ok: true, fleet: cfg.fleet.map((a) => a.model) });
+    }
+    // Per-agent sessions: merge the list across the fleet, route by-key calls home.
+    if (method === "GET" && path === "/api/sessions") {
+      handleSessionsList(cfg, req, res).catch((err) => {
+        console.error(`[talaria/gw] sessions list error: ${err.message}`);
+        if (!res.headersSent) sendJson(res, 500, { error: "talaria: sessions merge failed" });
+      });
+      return;
+    }
+    if (isNamespacedSession(path)) {
+      handleSessionByKey(cfg, req, res).catch((err) => {
+        console.error(`[talaria/gw] session route error: ${err.message}`);
+        if (!res.headersSent) sendJson(res, 500, { error: "talaria: session routing failed" });
+      });
+      return;
     }
     // Everything else → the default agent's gateway.
     proxy.web(req, res);
