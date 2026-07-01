@@ -73,6 +73,28 @@ export function ChatView({
     }
   }, [conversationId])
 
+  // Live-resume: if a loaded reply is still 'streaming' server-side (we didn't
+  // start it — a reload landed mid-generation), poll the persisted state so it
+  // fills in live until the server finalizes it. Capped so it can't poll forever.
+  const last = messages[messages.length - 1]
+  const resuming = !streaming && last?.role === 'assistant' && last.status === 'streaming'
+  useEffect(() => {
+    if (!resuming) return
+    const id = convIdRef.current
+    if (!id) return
+    let stop = false
+    let ticks = 0
+    const iv = setInterval(async () => {
+      if (stop || ++ticks > 90) return clearInterval(iv)
+      const res = await loadConversation(id)
+      if (!stop && res) setMessages(res.messages.map(toDisplay))
+    }, 800)
+    return () => {
+      stop = true
+      clearInterval(iv)
+    }
+  }, [resuming])
+
   const send = async () => {
     const text = input.trim()
     if (!text || streaming) return
@@ -142,7 +164,7 @@ export function ChatView({
             m.role === 'user' ? (
               <UserBubble key={i} content={m.content} />
             ) : (
-              <AssistantTurn key={i} message={m} live={streaming && i === messages.length - 1} />
+              <AssistantTurn key={i} message={m} live={(streaming || resuming) && i === messages.length - 1} />
             ),
           )
         )}
