@@ -1,0 +1,96 @@
+// Shared parser for the agent SSE stream (OpenAI deltas + hermes.tool.progress
+// events). Used by the client (to render) AND the server (to persist durably).
+// Pure Web-stream APIs, so it runs in the browser and in the Node server runtime.
+
+export interface ToolCall {
+  id?: string
+  name: string
+  label: string
+  status: 'running' | 'completed'
+}
+
+export type ChatEvent =
+  | { type: 'content'; text: string }
+  | { type: 'reasoning'; text: string }
+  | { type: 'tool'; id?: string; name: string; label: string; status?: 'running' | 'completed' }
+
+function parseToolProgress(payload: string): Extract<ChatEvent, { type: 'tool' }> | null {
+  try {
+    const r = JSON.parse(payload) as Record<string, unknown>
+    const str = (v: unknown) => (typeof v === 'string' ? v : '')
+    const name = str(r.tool) || str(r.name) || 'tool'
+    const label = [str(r.emoji), str(r.label)].filter(Boolean).join(' ').trim()
+    const id = str(r.toolCallId) || str(r.tool_call_id) || undefined
+    const s = str(r.status).toLowerCase()
+    const status = s === 'running' ? 'running' : s === 'completed' || s === 'complete' ? 'completed' : undefined
+    if (!label && !id) return null
+    // label may be empty — a later "completed" frame carries none; display falls
+    // back to `name`, and mergers must not overwrite a good label with an empty one.
+    return { type: 'tool', id, name, label, status }
+  } catch {
+    return null
+  }
+}
+
+/** Parse a raw agent SSE body into typed chat events. */
+export async function* parseAgentStream(body: ReadableStream<Uint8Array>): AsyncGenerator<ChatEvent> {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let sep: number
+    while ((sep = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, sep)
+      buffer = buffer.slice(sep + 2)
+
+      let eventName = ''
+      const dataLines: string[] = []
+      for (const line of frame.split('\n')) {
+        const t = line.trim()
+        if (t.startsWith('event:')) eventName = t.slice(6).trim()
+        else if (t.startsWith('data:')) dataLines.push(t.slice(5).trim())
+      }
+
+      for (const data of dataLines) {
+        if (!data || data === '[DONE]') continue
+        if (eventName === 'hermes.tool.progress' || eventName === 'claude.tool.progress') {
+          const tool = parseToolProgress(data)
+          if (tool) yield tool
+          continue
+        }
+        try {
+          const json = JSON.parse(data) as {
+            choices?: Array<{ delta?: { content?: string; reasoning?: string; reasoning_content?: string } }>
+          }
+          const d = json.choices?.[0]?.delta
+          if (d?.content) yield { type: 'content', text: d.content }
+          else if (d?.reasoning || d?.reasoning_content) {
+            yield { type: 'reasoning', text: d.reasoning || d.reasoning_content || '' }
+          }
+        } catch {
+          /* keep-alive / partial frame */
+        }
+      }
+    }
+  }
+}
+
+/** Fold a tool event into a running tool list (dedupe by id, else name+running). */
+export function mergeTool(tools: ToolCall[], ev: Extract<ChatEvent, { type: 'tool' }>): ToolCall[] {
+  const copy = tools.slice()
+  const idx = ev.id
+    ? copy.findIndex((t) => t.id === ev.id)
+    : copy.findIndex((t) => t.name === ev.name && t.status === 'running')
+  if (idx >= 0) {
+    const existing = copy[idx]!
+    copy[idx] = { ...existing, label: ev.label || existing.label, status: ev.status ?? existing.status }
+  } else {
+    copy.push({ id: ev.id, name: ev.name, label: ev.label, status: ev.status ?? 'running' })
+  }
+  return copy
+}
