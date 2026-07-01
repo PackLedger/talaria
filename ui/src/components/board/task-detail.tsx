@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { RichEditor } from '@/components/ui/rich-editor'
 import { Select } from '@/components/ui/select'
 import { Combobox } from '@/components/ui/combobox'
 import { Markdown } from '@/components/ui/markdown'
@@ -43,6 +43,7 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState('')
   const [comment, setComment] = useState('')
+  const [commentKey, setCommentKey] = useState(0)
 
   useEffect(() => {
     if (data?.task) {
@@ -110,14 +111,14 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                   )}
 
                   <Section label="Description">
-                    <Textarea
-                      rows={4}
-                      value={description}
-                      disabled={!canEdit}
-                      onChange={(e) => setDescription(e.target.value)}
+                    <RichEditor
+                      key={`desc-${t.id}`}
+                      value={t.description ?? ''}
+                      editable={canEdit}
+                      onChange={setDescription}
                       onBlur={() => description !== (t.description ?? '') && save({ description: description || null })}
                       placeholder="Add detail…"
-                      className="w-full"
+                      minHeight="6rem"
                     />
                   </Section>
 
@@ -143,11 +144,30 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                       ))}
                       {data!.comments.length === 0 && <li className="text-xs text-muted">No comments yet.</li>}
                     </ul>
-                    <div className="mt-2 flex gap-1.5">
-                      <Input value={comment} onChange={(e) => setComment(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && comment.trim()) { const c = comment.trim(); setComment(''); addComment(taskId, c).then(refresh) } }}
-                        placeholder="Comment…" className="h-9 flex-1 text-sm" />
-                      <Button size="sm" disabled={!comment.trim()} onClick={() => { const c = comment.trim(); setComment(''); void addComment(taskId, c).then(refresh) }}>Send</Button>
+                    <div className="mt-2">
+                      <RichEditor
+                        key={`comment-${commentKey}`}
+                        value=""
+                        editable
+                        onChange={setComment}
+                        placeholder="Write a comment…"
+                        minHeight="3rem"
+                      />
+                      <div className="mt-1 flex justify-end">
+                        <Button
+                          size="sm"
+                          disabled={!comment.trim()}
+                          onClick={() => {
+                            const c = comment.trim()
+                            if (!c) return
+                            setComment('')
+                            setCommentKey((k) => k + 1)
+                            void addComment(taskId, c).then(refresh)
+                          }}
+                        >
+                          Send
+                        </Button>
+                      </div>
                     </div>
                   </Section>
 
