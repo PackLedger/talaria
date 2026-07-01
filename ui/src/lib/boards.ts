@@ -6,6 +6,8 @@ export interface Board {
   id: string
   name: string
   ownerId: string
+  teamId: string | null
+  teamName: string | null
   role: BoardRole
   createdAt: string
   updatedAt: string
@@ -99,7 +101,7 @@ export function useTask(taskId: string | null) {
 }
 
 // ── Actions ──────────────────────────────────────────────────────────────────
-export const createBoard = (name: string) => post('/api/boards', { name }).then(j)
+export const createBoard = (name: string, teamId?: string | null) => post('/api/boards', { name, teamId }).then(j)
 export const createTask = (
   boardId: string,
   input: {

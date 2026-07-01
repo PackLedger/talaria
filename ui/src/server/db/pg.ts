@@ -72,6 +72,20 @@ const MIGRATIONS: string[] = [
      created_at timestamptz not null default now(),
      updated_at timestamptz not null default now()
    )`,
+  // Teams — a group of users that can collectively own/access boards.
+  `create table if not exists teams (
+     id uuid primary key default gen_random_uuid(),
+     name text not null,
+     created_by uuid references users(id) on delete set null,
+     created_at timestamptz not null default now()
+   )`,
+  `create table if not exists team_members (
+     team_id uuid not null references teams(id) on delete cascade,
+     user_id uuid not null references users(id) on delete cascade,
+     role text not null default 'member',
+     created_at timestamptz not null default now(),
+     primary key (team_id, user_id)
+   )`,
   // Boards — user-owned kanban boards, shareable across the team.
   `create table if not exists boards (
      id uuid primary key default gen_random_uuid(),
@@ -80,6 +94,8 @@ const MIGRATIONS: string[] = [
      created_at timestamptz not null default now(),
      updated_at timestamptz not null default now()
    )`,
+  // A board may belong to a team — all team members can access it.
+  `alter table boards add column if not exists team_id uuid references teams(id) on delete set null`,
   // Membership = sharing. role: owner | editor | viewer.
   `create table if not exists board_members (
      board_id uuid not null references boards(id) on delete cascade,

@@ -8,10 +8,14 @@ export interface Board {
   id: string
   name: string
   ownerId: string
+  teamId: string | null
+  teamName: string | null
   role: BoardRole // the requesting user's role
   createdAt: string
   updatedAt: string
 }
+
+const RANK: Record<BoardRole, number> = { owner: 3, editor: 2, viewer: 1 }
 
 export interface BoardMember {
   userId: string
@@ -20,24 +24,36 @@ export interface BoardMember {
   role: BoardRole
 }
 
-/** Boards the user can see (owns or shared with). */
+/** Boards the user can see — explicitly shared OR via a team they belong to. */
 export async function listBoards(userId: string): Promise<Board[]> {
   const sql = await db()
   const rows = await sql`
-    select b.id, b.name, b.owner_id as "ownerId", m.role,
+    select b.id, b.name, b.owner_id as "ownerId", b.team_id as "teamId", t.name as "teamName",
+           coalesce(m.role, case when tm.role = 'owner' then 'owner' when tm.role is not null then 'editor' end) as role,
            b.created_at as "createdAt", b.updated_at as "updatedAt"
     from boards b
-    join board_members m on m.board_id = b.id and m.user_id = ${userId}
+    left join board_members m on m.board_id = b.id and m.user_id = ${userId}
+    left join team_members tm on tm.team_id = b.team_id and tm.user_id = ${userId}
+    left join teams t on t.id = b.team_id
+    where m.user_id is not null or tm.user_id is not null
     order by b.updated_at desc
   `
   return rows as unknown as Board[]
 }
 
-/** The user's role on a board, or null if no access. */
+/** The user's effective role on a board — max of explicit share + team access. */
 export async function boardRole(userId: string, boardId: string): Promise<BoardRole | null> {
   const sql = await db()
-  const rows = await sql`select role from board_members where board_id = ${boardId} and user_id = ${userId}`
-  return rows.length ? (rows[0] as { role: BoardRole }).role : null
+  const rows = await sql`
+    select role from board_members where board_id = ${boardId} and user_id = ${userId}
+    union all
+    select case when tm.role = 'owner' then 'owner' else 'editor' end as role
+    from boards b join team_members tm on tm.team_id = b.team_id and tm.user_id = ${userId}
+    where b.id = ${boardId}
+  `
+  const roles = (rows as unknown as Array<{ role: BoardRole }>).map((r) => r.role)
+  if (roles.length === 0) return null
+  return roles.sort((a, b) => RANK[b] - RANK[a])[0]!
 }
 
 export const canEdit = (role: BoardRole | null) => role === 'owner' || role === 'editor'
@@ -54,16 +70,20 @@ function ticketPrefix(name: string): string {
   return initials.length >= 2 ? initials : (name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'TASK')
 }
 
-/** Create a board and make the creator its owner. */
-export async function createBoard(userId: string, name: string): Promise<Board> {
+/** Create a board (personal, or under a team) and make the creator its owner. */
+export async function createBoard(userId: string, name: string, teamId?: string | null): Promise<Board> {
   const sql = await db()
   const board = await sql.begin(async (tx) => {
-    const rows = await tx`insert into boards (name, owner_id, ticket_prefix) values (${name}, ${userId}, ${ticketPrefix(name)}) returning id, name, owner_id as "ownerId", created_at as "createdAt", updated_at as "updatedAt"`
-    const b = rows[0] as Omit<Board, 'role'>
+    const rows = await tx`
+      insert into boards (name, owner_id, ticket_prefix, team_id)
+      values (${name}, ${userId}, ${ticketPrefix(name)}, ${teamId ?? null})
+      returning id, name, owner_id as "ownerId", team_id as "teamId", created_at as "createdAt", updated_at as "updatedAt"
+    `
+    const b = rows[0] as Omit<Board, 'role' | 'teamName'>
     await tx`insert into board_members (board_id, user_id, role) values (${b.id}, ${userId}, 'owner')`
     return b
   })
-  return { ...board, role: 'owner' }
+  return { ...board, teamName: null, role: 'owner' }
 }
 
 export async function renameBoard(boardId: string, name: string): Promise<void> {
