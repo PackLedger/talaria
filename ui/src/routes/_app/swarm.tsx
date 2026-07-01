@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select'
 import { Panel } from '@/components/ui/panel'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Kanban } from '@/components/board/kanban'
+import { TaskDetail } from '@/components/board/task-detail'
 import {
   createBoard,
   shareBoard,
@@ -25,6 +26,7 @@ function SwarmBoard() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState('')
   const [showShare, setShowShare] = useState(false)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!selectedId && boards[0]) setSelectedId(boards[0].id)
@@ -79,11 +81,15 @@ function SwarmBoard() {
 
       <div className="min-h-0 flex-1">
         {board ? (
-          <Kanban board={board} />
+          <Kanban board={board} onOpen={setOpenTaskId} />
         ) : (
           <EmptyState icon="⧉" title="No boards yet" hint="Name one above and hit Create to start assigning work." />
         )}
       </div>
+
+      {board && openTaskId && (
+        <TaskDetail taskId={openTaskId} board={board} onClose={() => setOpenTaskId(null)} />
+      )}
     </div>
   )
 }

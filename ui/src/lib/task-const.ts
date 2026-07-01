@@ -15,8 +15,26 @@ export interface Task {
   assignedTo: string | null
   createdBy: string
   result: string | null
+  dueDate: string | null
+  tags: string[]
   createdAt: string
   updatedAt: string
+}
+
+export interface TaskComment {
+  id: string
+  author: string
+  content: string
+  parentId: string | null
+  createdAt: string
+}
+
+export interface TaskActivity {
+  id: string
+  actor: string
+  type: string
+  description: string
+  createdAt: string
 }
 
 export const STATUS_LABEL: Record<string, string> = {

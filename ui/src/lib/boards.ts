@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { Priority, Task, TaskStatus } from '@/lib/task-const'
+import type { Priority, Task, TaskActivity, TaskComment, TaskStatus } from '@/lib/task-const'
 
 export type BoardRole = 'owner' | 'editor' | 'viewer'
 export interface Board {
@@ -57,16 +57,41 @@ export function useBoardMembers(boardId: string | null) {
   })
 }
 
+export function useTask(taskId: string | null) {
+  return useQuery({
+    queryKey: ['task', taskId],
+    enabled: !!taskId,
+    queryFn: async (): Promise<{ task: Task; comments: TaskComment[]; activity: TaskActivity[] } | null> => {
+      const r = await fetch(`/api/tasks/${taskId}`, { credentials: 'same-origin' })
+      if (!r.ok) return null
+      return r.json()
+    },
+  })
+}
+
 // ── Actions ──────────────────────────────────────────────────────────────────
 export const createBoard = (name: string) => post('/api/boards', { name }).then(j)
 export const createTask = (
   boardId: string,
-  input: { title: string; description?: string; priority?: Priority; assignedTo?: string | null },
+  input: { title: string; description?: string; priority?: Priority; assignedTo?: string | null; dueDate?: string | null },
 ) => post(`/api/boards/${boardId}/tasks`, input).then(j)
+
+export const addComment = (taskId: string, content: string) => post(`/api/tasks/${taskId}/comments`, { content }).then(j)
+export const deleteTask = (taskId: string) =>
+  fetch(`/api/tasks/${taskId}`, { method: 'DELETE', credentials: 'same-origin' })
 
 export const updateTask = (
   taskId: string,
-  patch: { status?: TaskStatus; priority?: Priority; assignedTo?: string | null; result?: string | null },
+  patch: {
+    title?: string
+    description?: string | null
+    status?: TaskStatus
+    priority?: Priority
+    assignedTo?: string | null
+    result?: string | null
+    dueDate?: string | null
+    tags?: string[]
+  },
 ) =>
   fetch(`/api/tasks/${taskId}`, {
     method: 'PUT',

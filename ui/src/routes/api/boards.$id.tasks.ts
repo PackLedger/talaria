@@ -25,6 +25,7 @@ export const Route = createFileRoute('/api/boards/$id/tasks')({
             description: z.string().max(20_000).optional(),
             priority: z.enum(PRIORITIES).optional(),
             assignedTo: z.string().max(200).nullish(),
+            dueDate: z.string().datetime().nullish(),
           })
           .safeParse(await request.json().catch(() => null))
         if (!parsed.success) return json({ error: 'bad request' }, { status: 400 })
@@ -34,6 +35,7 @@ export const Route = createFileRoute('/api/boards/$id/tasks')({
           description: parsed.data.description,
           priority: parsed.data.priority,
           assignedTo: parsed.data.assignedTo ?? null,
+          dueDate: parsed.data.dueDate ?? null,
           createdBy: user.email ?? user.name ?? 'user',
         })
         return json({ task })

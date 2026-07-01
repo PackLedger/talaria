@@ -4,50 +4,59 @@ import { z } from 'zod'
 import { getSessionUser } from '@/server/auth/session'
 import { checkAgentKey } from '@/server/agent-auth'
 import { boardRole, canEdit } from '@/server/boards'
-import { getTask, PRIORITIES, TASK_STATUSES, updateTask } from '@/server/tasks'
+import { deleteTask, getTask, getTaskFull, PRIORITIES, TASK_STATUSES, updateTask } from '@/server/tasks'
 
 const AllStatuses = [...TASK_STATUSES, 'failed', 'cancelled'] as const
 const Patch = z.object({
+  title: z.string().min(1).max(300).optional(),
+  description: z.string().max(20_000).nullish(),
   status: z.enum(AllStatuses).optional(),
   priority: z.enum(PRIORITIES).optional(),
   assignedTo: z.string().max(200).nullish(),
   result: z.string().max(50_000).nullish(),
+  dueDate: z.string().datetime().nullish(),
+  tags: z.array(z.string().max(40)).max(20).optional(),
 })
 
-// GET → a task (board member). PUT → update it (board owner/editor via session,
-// OR the assigned agent via TALARIA_AGENT_KEY reporting status/result).
+// GET → full task (task + comments + activity), board member.
+// PUT → update (board owner/editor via session, OR the agent via TALARIA_AGENT_KEY).
+// DELETE → board owner/editor.
 export const Route = createFileRoute('/api/tasks/$id')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'unauthorized' }, { status: 401 })
-        const task = await getTask(params.id)
-        if (!task) return json({ error: 'not found' }, { status: 404 })
-        if (!(await boardRole(user.id, task.boardId))) return json({ error: 'forbidden' }, { status: 403 })
-        return json({ task })
+        const full = await getTaskFull(params.id)
+        if (!full) return json({ error: 'not found' }, { status: 404 })
+        if (!(await boardRole(user.id, full.task.boardId))) return json({ error: 'forbidden' }, { status: 403 })
+        return json(full)
       },
       PUT: async ({ request, params }) => {
         const task = await getTask(params.id)
         if (!task) return json({ error: 'not found' }, { status: 404 })
 
-        // Agent reporting (key auth) OR a board editor (session).
-        let allowed = checkAgentKey(request)
-        if (!allowed) {
+        const agent = checkAgentKey(request)
+        let actor = 'agent'
+        if (!agent) {
           const user = await getSessionUser(request)
-          allowed = !!user && canEdit(await boardRole(user.id, task.boardId))
+          if (!user || !canEdit(await boardRole(user.id, task.boardId))) return json({ error: 'forbidden' }, { status: 403 })
+          actor = user.email ?? user.name ?? 'user'
         }
-        if (!allowed) return json({ error: 'forbidden' }, { status: 403 })
 
         const parsed = Patch.safeParse(await request.json().catch(() => null))
         if (!parsed.success) return json({ error: 'bad request' }, { status: 400 })
-        const updated = await updateTask(params.id, {
-          status: parsed.data.status,
-          priority: parsed.data.priority,
-          assignedTo: parsed.data.assignedTo === undefined ? undefined : parsed.data.assignedTo,
-          result: parsed.data.result ?? undefined,
-        })
+        const updated = await updateTask(params.id, parsed.data, actor)
         return json({ task: updated })
+      },
+      DELETE: async ({ request, params }) => {
+        const user = await getSessionUser(request)
+        if (!user) return json({ error: 'unauthorized' }, { status: 401 })
+        const task = await getTask(params.id)
+        if (!task) return json({ error: 'not found' }, { status: 404 })
+        if (!canEdit(await boardRole(user.id, task.boardId))) return json({ error: 'forbidden' }, { status: 403 })
+        await deleteTask(params.id)
+        return json({ ok: true })
       },
     },
   },

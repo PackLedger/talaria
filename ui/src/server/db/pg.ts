@@ -106,6 +106,27 @@ const MIGRATIONS: string[] = [
    )`,
   `create index if not exists tasks_board_idx on tasks(board_id, status, updated_at desc)`,
   `create index if not exists tasks_assignee_idx on tasks(assigned_to)`,
+  `alter table tasks add column if not exists due_date timestamptz`,
+  // Threaded comments on a task (author is a user email or an agent name).
+  `create table if not exists task_comments (
+     id uuid primary key default gen_random_uuid(),
+     task_id uuid not null references tasks(id) on delete cascade,
+     author text not null,
+     content text not null,
+     parent_id uuid references task_comments(id) on delete set null,
+     created_at timestamptz not null default now()
+   )`,
+  `create index if not exists task_comments_task_idx on task_comments(task_id, created_at)`,
+  // Activity/audit log for a task (created, status change, assigned, comment, …).
+  `create table if not exists task_activity (
+     id uuid primary key default gen_random_uuid(),
+     task_id uuid not null references tasks(id) on delete cascade,
+     actor text not null,
+     type text not null,
+     description text not null,
+     created_at timestamptz not null default now()
+   )`,
+  `create index if not exists task_activity_task_idx on task_activity(task_id, created_at desc)`,
 ]
 
 function ensureMigrated(): Promise<void> {

@@ -10,7 +10,7 @@ const MOVE_OPTIONS: TaskStatus[] = [...TASK_STATUSES, 'failed', 'cancelled']
 
 // Kanban board for one board's tasks. Columns are statuses; agents can be
 // assigned per card. Editors+ can create/move/assign; viewers are read-only.
-export function Kanban({ board }: { board: Board }) {
+export function Kanban({ board, onOpen }: { board: Board; onOpen: (taskId: string) => void }) {
   const qc = useQueryClient()
   const { data: tasks = [] } = useBoardTasks(board.id)
   const { data: fleet } = useAgents()
@@ -48,13 +48,14 @@ export function Kanban({ board }: { board: Board }) {
             <div className="flex-1 space-y-2 overflow-y-auto pr-1">
               {colTasks.map((t) => (
                 <div key={t.id} className="mercury-panel rounded-xl p-3">
-                  <div className="flex items-start gap-2">
+                  <button type="button" onClick={() => onOpen(t.id)} className="flex w-full items-start gap-2 text-left">
                     <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: PRIORITY_COLOR[t.priority] }} />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm text-fg">{t.title}</div>
                       {t.description && <div className="mt-0.5 line-clamp-2 text-xs text-muted">{t.description}</div>}
+                      {t.dueDate && <div className="mt-1 text-[11px] text-muted">due {t.dueDate.slice(0, 10)}</div>}
                     </div>
-                  </div>
+                  </button>
                   {canEdit && (
                     <div className="mt-2 flex gap-1.5">
                       <Select value={t.status} onChange={(e) => move(t, e.target.value as TaskStatus)} className="min-w-0 flex-1">
