@@ -3,60 +3,85 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Markdown } from '@/components/ui/markdown'
 import { Disclosure } from '@/components/ui/disclosure'
-import { streamChat, type ChatMessage, type ToolCall } from '@/lib/chat'
+import { streamChat } from '@/lib/chat'
+import { mergeTool, type ToolCall } from '@/lib/sse-parse'
+import { loadConversation, type StoredMessage } from '@/lib/conversations'
 
 interface DisplayMessage {
   role: 'user' | 'assistant'
   content: string
   reasoning?: string
   tools?: ToolCall[]
+  status?: 'streaming' | 'complete' | 'error'
 }
 
-// A streaming chat thread with one fleet agent. Remount (via a `key` on the
-// model) to start a fresh thread when the agent changes.
-export function ChatView({ model, agentLabel }: { model: string; agentLabel: string }) {
+const toDisplay = (m: StoredMessage): DisplayMessage => ({
+  role: m.role,
+  content: m.content,
+  reasoning: m.reasoning,
+  tools: m.tools,
+  status: m.status,
+})
+
+// A durable chat thread. Server owns history; this loads an existing conversation
+// (conversationId) or starts fresh (newChatSignal), and streams new turns.
+export function ChatView({
+  agentModel,
+  agentLabel,
+  conversationId,
+  newChatSignal,
+  onCreated,
+}: {
+  agentModel: string
+  agentLabel: string
+  conversationId: string | null
+  newChatSignal: number
+  onCreated: (id: string) => void
+}) {
   const [messages, setMessages] = useState<DisplayMessage[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const convIdRef = useRef<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
   useEffect(() => () => abortRef.current?.abort(), [])
 
-  // Fold a tool-progress event into the running tool list (dedupe by id/name).
-  const mergeTool = (tools: ToolCall[], ev: { id?: string; name: string; label: string; status?: 'running' | 'completed' }): ToolCall[] => {
-    const copy = tools.slice()
-    const idx = ev.id
-      ? copy.findIndex((t) => t.id === ev.id)
-      : copy.findIndex((t) => t.name === ev.name && t.status === 'running')
-    if (idx >= 0) {
-      const existing = copy[idx]!
-      copy[idx] = { ...existing, label: ev.label || existing.label, status: ev.status ?? existing.status }
-    } else {
-      copy.push({ id: ev.id, name: ev.name, label: ev.label, status: ev.status ?? 'running' })
+  // New-chat reset (declared before the loader so mount order is reset→load).
+  useEffect(() => {
+    abortRef.current?.abort()
+    convIdRef.current = null
+    setMessages([])
+    setError(null)
+  }, [newChatSignal])
+
+  // Load an existing conversation when the selection changes.
+  useEffect(() => {
+    if (!conversationId || conversationId === convIdRef.current) return
+    abortRef.current?.abort()
+    convIdRef.current = conversationId
+    let cancelled = false
+    loadConversation(conversationId).then((res) => {
+      if (!cancelled) setMessages((res?.messages ?? []).map(toDisplay))
+    })
+    return () => {
+      cancelled = true
     }
-    return copy
-  }
+  }, [conversationId])
 
   const send = async () => {
     const text = input.trim()
     if (!text || streaming) return
     setError(null)
     setInput('')
-
-    const history: ChatMessage[] = [
-      ...messages.map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user' as const, content: text },
-    ]
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text },
-      { role: 'assistant', content: '', reasoning: '', tools: [] },
+      { role: 'assistant', content: '', reasoning: '', tools: [], status: 'streaming' },
     ])
     setStreaming(true)
 
@@ -71,11 +96,21 @@ export function ChatView({ model, agentLabel }: { model: string; agentLabel: str
     const ctrl = new AbortController()
     abortRef.current = ctrl
     try {
-      for await (const ev of streamChat(model, history, ctrl.signal)) {
+      for await (const ev of streamChat(
+        { model: agentModel, conversationId: convIdRef.current ?? undefined, content: text },
+        (meta) => {
+          if (!convIdRef.current) {
+            convIdRef.current = meta.conversationId
+            onCreated(meta.conversationId)
+          }
+        },
+        ctrl.signal,
+      )) {
         if (ev.type === 'content') patchLast((m) => ({ ...m, content: m.content + ev.text }))
         else if (ev.type === 'reasoning') patchLast((m) => ({ ...m, reasoning: (m.reasoning ?? '') + ev.text }))
         else if (ev.type === 'tool') patchLast((m) => ({ ...m, tools: mergeTool(m.tools ?? [], ev) }))
       }
+      patchLast((m) => ({ ...m, status: 'complete' }))
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError((e as Error).message)
     } finally {
@@ -85,7 +120,6 @@ export function ChatView({ model, agentLabel }: { model: string; agentLabel: str
   }
 
   const stop = () => abortRef.current?.abort()
-
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -108,7 +142,7 @@ export function ChatView({ model, agentLabel }: { model: string; agentLabel: str
             m.role === 'user' ? (
               <UserBubble key={i} content={m.content} />
             ) : (
-              <AssistantTurn key={i} message={m} streaming={streaming && i === messages.length - 1} />
+              <AssistantTurn key={i} message={m} live={streaming && i === messages.length - 1} />
             ),
           )
         )}
@@ -150,8 +184,8 @@ function UserBubble({ content }: { content: string }) {
   )
 }
 
-function AssistantTurn({ message, streaming }: { message: DisplayMessage; streaming: boolean }) {
-  const { content, reasoning, tools } = message
+function AssistantTurn({ message, live }: { message: DisplayMessage; live: boolean }) {
+  const { content, reasoning, tools, status } = message
   const hasReasoning = !!reasoning?.trim()
   const hasTools = !!tools?.length
   const empty = !content && !hasReasoning && !hasTools
@@ -192,12 +226,18 @@ function AssistantTurn({ message, streaming }: { message: DisplayMessage; stream
 
         {content && <Markdown>{content}</Markdown>}
 
-        {empty && streaming && (
+        {empty && live && (
           <span className="inline-flex gap-1 py-1">
             <Dot /> <Dot delay={0.15} /> <Dot delay={0.3} />
           </span>
         )}
-        {content && streaming && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-middle" />}
+        {content && live && <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-middle" />}
+        {!live && status === 'streaming' && (
+          <div className="text-xs text-muted">· saved (was in progress)</div>
+        )}
+        {!live && status === 'error' && (
+          <div className="text-xs" style={{ color: 'var(--theme-danger)' }}>· interrupted</div>
+        )}
       </div>
     </div>
   )
@@ -212,10 +252,5 @@ function ToolStatus({ status }: { status: 'running' | 'completed' }) {
 }
 
 function Dot({ delay = 0 }: { delay?: number }) {
-  return (
-    <span
-      className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted"
-      style={{ animationDelay: `${delay}s` }}
-    />
-  )
+  return <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-muted" style={{ animationDelay: `${delay}s` }} />
 }

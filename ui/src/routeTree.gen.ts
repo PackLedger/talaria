@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAgentsRouteImport } from './routes/api/agents'
+import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthProvidersRouteImport } from './routes/api/auth/providers'
 import { Route as ApiAuthPasswordRouteImport } from './routes/api/auth/password'
@@ -30,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConversationsRoute = ApiConversationsRouteImport.update({
+  id: '/api/conversations',
+  path: '/api/conversations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -39,6 +46,11 @@ const ApiAgentsRoute = ApiAgentsRouteImport.update({
   id: '/api/agents',
   path: '/api/agents',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConversationsIdRoute = ApiConversationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiConversationsRoute,
 } as any)
 const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
   id: '/api/auth/session',
@@ -76,11 +88,13 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -88,11 +102,13 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesById {
@@ -101,11 +117,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
+  '/api/conversations/$id': typeof ApiConversationsIdRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRouteTypes {
@@ -115,11 +133,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/agents'
     | '/api/chat'
+    | '/api/conversations'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
     | '/api/auth/providers'
     | '/api/auth/session'
+    | '/api/conversations/$id'
     | '/api/auth/google/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,11 +147,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/agents'
     | '/api/chat'
+    | '/api/conversations'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
     | '/api/auth/providers'
     | '/api/auth/session'
+    | '/api/conversations/$id'
     | '/api/auth/google/callback'
   id:
     | '__root__'
@@ -139,11 +161,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/api/agents'
     | '/api/chat'
+    | '/api/conversations'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
     | '/api/auth/providers'
     | '/api/auth/session'
+    | '/api/conversations/$id'
     | '/api/auth/google/callback'
   fileRoutesById: FileRoutesById
 }
@@ -152,6 +176,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiAgentsRoute: typeof ApiAgentsRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
   ApiAuthGoogleRoute: typeof ApiAuthGoogleRouteWithChildren
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthPasswordRoute: typeof ApiAuthPasswordRoute
@@ -175,6 +200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/conversations': {
+      id: '/api/conversations'
+      path: '/api/conversations'
+      fullPath: '/api/conversations'
+      preLoaderRoute: typeof ApiConversationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -188,6 +220,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/agents'
       preLoaderRoute: typeof ApiAgentsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/conversations/$id': {
+      id: '/api/conversations/$id'
+      path: '/$id'
+      fullPath: '/api/conversations/$id'
+      preLoaderRoute: typeof ApiConversationsIdRouteImport
+      parentRoute: typeof ApiConversationsRoute
     }
     '/api/auth/session': {
       id: '/api/auth/session'
@@ -234,6 +273,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ApiConversationsRouteChildren {
+  ApiConversationsIdRoute: typeof ApiConversationsIdRoute
+}
+
+const ApiConversationsRouteChildren: ApiConversationsRouteChildren = {
+  ApiConversationsIdRoute: ApiConversationsIdRoute,
+}
+
+const ApiConversationsRouteWithChildren =
+  ApiConversationsRoute._addFileChildren(ApiConversationsRouteChildren)
+
 interface ApiAuthGoogleRouteChildren {
   ApiAuthGoogleCallbackRoute: typeof ApiAuthGoogleCallbackRoute
 }
@@ -251,6 +301,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiAgentsRoute: ApiAgentsRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiConversationsRoute: ApiConversationsRouteWithChildren,
   ApiAuthGoogleRoute: ApiAuthGoogleRouteWithChildren,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthPasswordRoute: ApiAuthPasswordRoute,
