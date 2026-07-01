@@ -36,7 +36,9 @@ import { Route as ApiAuthProvidersRouteImport } from './routes/api/auth/provider
 import { Route as ApiAuthPasswordRouteImport } from './routes/api/auth/password'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
+import { Route as ApiAgentsRegisterRouteImport } from './routes/api/agents.register'
 import { Route as ApiAuthGoogleCallbackRouteImport } from './routes/api/auth/google.callback'
+import { Route as ApiAgentsIdHeartbeatRouteImport } from './routes/api/agents.$id.heartbeat'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -172,10 +174,20 @@ const ApiAuthGoogleRoute = ApiAuthGoogleRouteImport.update({
   path: '/api/auth/google',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentsRegisterRoute = ApiAgentsRegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => ApiAgentsRoute,
+} as any)
 const ApiAuthGoogleCallbackRoute = ApiAuthGoogleCallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
   getParentRoute: () => ApiAuthGoogleRoute,
+} as any)
+const ApiAgentsIdHeartbeatRoute = ApiAgentsIdHeartbeatRouteImport.update({
+  id: '/$id/heartbeat',
+  path: '/$id/heartbeat',
+  getParentRoute: () => ApiAgentsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -195,16 +207,18 @@ export interface FileRoutesByFullPath {
   '/skills': typeof AppSkillsRoute
   '/swarm': typeof AppSwarmRoute
   '/tasks': typeof AppTasksRoute
-  '/api/agents': typeof ApiAgentsRoute
+  '/api/agents': typeof ApiAgentsRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/fleet': typeof ApiFleetRoute
+  '/api/agents/register': typeof ApiAgentsRegisterRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/conversations/$id': typeof ApiConversationsIdRoute
+  '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesByTo {
@@ -223,17 +237,19 @@ export interface FileRoutesByTo {
   '/skills': typeof AppSkillsRoute
   '/swarm': typeof AppSwarmRoute
   '/tasks': typeof AppTasksRoute
-  '/api/agents': typeof ApiAgentsRoute
+  '/api/agents': typeof ApiAgentsRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/fleet': typeof ApiFleetRoute
   '/': typeof AppIndexRoute
+  '/api/agents/register': typeof ApiAgentsRegisterRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/conversations/$id': typeof ApiConversationsIdRoute
+  '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesById {
@@ -254,17 +270,19 @@ export interface FileRoutesById {
   '/_app/skills': typeof AppSkillsRoute
   '/_app/swarm': typeof AppSwarmRoute
   '/_app/tasks': typeof AppTasksRoute
-  '/api/agents': typeof ApiAgentsRoute
+  '/api/agents': typeof ApiAgentsRouteWithChildren
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
   '/api/fleet': typeof ApiFleetRoute
   '/_app/': typeof AppIndexRoute
+  '/api/agents/register': typeof ApiAgentsRegisterRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
   '/api/auth/providers': typeof ApiAuthProvidersRoute
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/conversations/$id': typeof ApiConversationsIdRoute
+  '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRouteTypes {
@@ -290,12 +308,14 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/conversations'
     | '/api/fleet'
+    | '/api/agents/register'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
     | '/api/auth/providers'
     | '/api/auth/session'
     | '/api/conversations/$id'
+    | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -319,12 +339,14 @@ export interface FileRouteTypes {
     | '/api/conversations'
     | '/api/fleet'
     | '/'
+    | '/api/agents/register'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
     | '/api/auth/providers'
     | '/api/auth/session'
     | '/api/conversations/$id'
+    | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
   id:
     | '__root__'
@@ -349,19 +371,21 @@ export interface FileRouteTypes {
     | '/api/conversations'
     | '/api/fleet'
     | '/_app/'
+    | '/api/agents/register'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
     | '/api/auth/providers'
     | '/api/auth/session'
     | '/api/conversations/$id'
+    | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
-  ApiAgentsRoute: typeof ApiAgentsRoute
+  ApiAgentsRoute: typeof ApiAgentsRouteWithChildren
   ApiChatRoute: typeof ApiChatRoute
   ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
   ApiFleetRoute: typeof ApiFleetRoute
@@ -563,12 +587,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthGoogleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agents/register': {
+      id: '/api/agents/register'
+      path: '/register'
+      fullPath: '/api/agents/register'
+      preLoaderRoute: typeof ApiAgentsRegisterRouteImport
+      parentRoute: typeof ApiAgentsRoute
+    }
     '/api/auth/google/callback': {
       id: '/api/auth/google/callback'
       path: '/callback'
       fullPath: '/api/auth/google/callback'
       preLoaderRoute: typeof ApiAuthGoogleCallbackRouteImport
       parentRoute: typeof ApiAuthGoogleRoute
+    }
+    '/api/agents/$id/heartbeat': {
+      id: '/api/agents/$id/heartbeat'
+      path: '/$id/heartbeat'
+      fullPath: '/api/agents/$id/heartbeat'
+      preLoaderRoute: typeof ApiAgentsIdHeartbeatRouteImport
+      parentRoute: typeof ApiAgentsRoute
     }
   }
 }
@@ -611,6 +649,20 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface ApiAgentsRouteChildren {
+  ApiAgentsRegisterRoute: typeof ApiAgentsRegisterRoute
+  ApiAgentsIdHeartbeatRoute: typeof ApiAgentsIdHeartbeatRoute
+}
+
+const ApiAgentsRouteChildren: ApiAgentsRouteChildren = {
+  ApiAgentsRegisterRoute: ApiAgentsRegisterRoute,
+  ApiAgentsIdHeartbeatRoute: ApiAgentsIdHeartbeatRoute,
+}
+
+const ApiAgentsRouteWithChildren = ApiAgentsRoute._addFileChildren(
+  ApiAgentsRouteChildren,
+)
+
 interface ApiConversationsRouteChildren {
   ApiConversationsIdRoute: typeof ApiConversationsIdRoute
 }
@@ -637,7 +689,7 @@ const ApiAuthGoogleRouteWithChildren = ApiAuthGoogleRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
-  ApiAgentsRoute: ApiAgentsRoute,
+  ApiAgentsRoute: ApiAgentsRouteWithChildren,
   ApiChatRoute: ApiChatRoute,
   ApiConversationsRoute: ApiConversationsRouteWithChildren,
   ApiFleetRoute: ApiFleetRoute,

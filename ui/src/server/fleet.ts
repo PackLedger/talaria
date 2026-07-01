@@ -6,11 +6,15 @@
 
 import { db } from './db/pg'
 import { listAgents } from './gateway'
+import { registryByName, seedFleetNames, type AgentStatus } from './agents-registry'
 
 export interface FleetAgentStat {
   id: string
   label: string
   role: string
+  status: AgentStatus
+  lastSeen: string | null
+  lastActivity: string | null
   conversations: number
   messages: number
   lastUsed: string | null
@@ -19,11 +23,15 @@ export interface FleetAgentStat {
 export interface FleetOverview {
   agents: FleetAgentStat[]
   source: 'gateway' | 'mock'
-  totals: { agents: number; conversations: number; messages: number; activeToday: number }
+  totals: { agents: number; online: number; conversations: number; messages: number; activeToday: number }
 }
 
 export async function getFleetOverview(): Promise<FleetOverview> {
   const { agents, source } = await listAgents()
+  // Seed the registry from the fleet so every agent shows (offline until it
+  // heartbeats to Talaria), then read owned status.
+  await seedFleetNames(agents.map((a) => a.id))
+  const registry = await registryByName()
   const sql = await db()
 
   // Fleet-wide usage (all users) per agent — the ops/maintainer view.
@@ -40,10 +48,14 @@ export async function getFleetOverview(): Promise<FleetOverview> {
 
   const stats: FleetAgentStat[] = agents.map((a) => {
     const r = byModel.get(a.id) as { conversations: number; messages: number; last_used: string | null } | undefined
+    const reg = registry.get(a.id)
     return {
       id: a.id,
       label: a.label,
       role: a.role,
+      status: reg?.status ?? 'offline',
+      lastSeen: reg?.lastSeen ?? null,
+      lastActivity: reg?.lastActivity ?? null,
       conversations: r?.conversations ?? 0,
       messages: r?.messages ?? 0,
       lastUsed: r?.last_used ?? null,
@@ -53,6 +65,7 @@ export async function getFleetOverview(): Promise<FleetOverview> {
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
   const totals = {
     agents: stats.length,
+    online: stats.filter((s) => s.status !== 'offline').length,
     conversations: stats.reduce((n, s) => n + s.conversations, 0),
     messages: stats.reduce((n, s) => n + s.messages, 0),
     activeToday: stats.filter((s) => s.lastUsed && new Date(s.lastUsed).getTime() > dayAgo).length,
