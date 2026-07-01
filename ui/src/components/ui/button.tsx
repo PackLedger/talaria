@@ -1,0 +1,40 @@
+import { forwardRef } from 'react'
+import { cn } from '@/lib/cn'
+
+type Variant = 'primary' | 'outline' | 'ghost'
+type Size = 'sm' | 'md'
+
+const base =
+  'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2'
+
+const variants: Record<Variant, string> = {
+  // Mercury bronze — solid metal, near-black label, matte (no glow).
+  primary: 'bg-accent text-surface hover:brightness-110 shadow-[var(--theme-shadow-1)]',
+  outline: 'border border-line bg-card text-fg hover:border-[var(--theme-accent-border)]',
+  ghost: 'text-muted hover:text-accent',
+}
+
+const sizes: Record<Size, string> = {
+  sm: 'h-9 px-3 text-sm',
+  md: 'h-11 px-4',
+}
+
+/** Shared button styling — reuse this on <a>/<label> etc. so links match buttons
+ *  without duplicating the classes (see the Google sign-in anchor). */
+export function buttonClasses(opts?: { variant?: Variant; size?: Size; className?: string }): string {
+  const { variant = 'primary', size = 'md', className } = opts ?? {}
+  return cn(base, variants[variant], sizes[size], className)
+}
+
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant
+  size?: Size
+}
+
+/** The one button. Reuse everywhere — do not re-style buttons inline. */
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'primary', size = 'md', type = 'button', ...props }, ref) => (
+    <button ref={ref} type={type} className={buttonClasses({ variant, size, className })} {...props} />
+  ),
+)
+Button.displayName = 'Button'

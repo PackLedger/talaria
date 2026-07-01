@@ -68,6 +68,15 @@ stateless HMAC sessions, and a login screen that renders only what's enabled. Ne
 picker + streaming chat over the gateway plane. Later (P2.5): monitor local inference stacks (Ollama,
 vLLM, llama.cpp, …) so Talaria becomes an all-in-one self-hosted Hermes super-dashboard.
 
+**Fleet: both Hermes deployment shapes, from one manifest.** A fleet entry now supports (A) separate
+installs — one gateway per agent — and (B) multiple Hermes *profiles* on one host (each profile's API
+server on its own port), via optional `profile` / `upstreamModel` / `pathPrefix` fields. Talaria
+rewrites the forwarded `model` to the profile when set; the UI is unaffected (it only sees Talaria's
+exposed model ids). `pathPrefix` is the hook for Hermes' emerging single-endpoint profile multiplex
+(`multiplex_profiles`; NousResearch/hermes-agent #24913, #23735). Research confirmed: at the
+OpenAI-API layer today, even "multiple profiles" exposes one port per profile, so both shapes reduce
+to one `{model,url,key}` per agent — which Talaria already routes.
+
 Today Talaria is the *seam* between two external UIs. The real flex is making it a **product** with its
 own UI and its own identity. Not a fork of either upstream (that's a maintenance trap), but our own
 frontend that **pulls in just the bits we need** from each (both are MIT, so we can lift components

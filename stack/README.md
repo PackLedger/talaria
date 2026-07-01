@@ -39,6 +39,27 @@ docker compose up -d --build
 entry maps a model name (the agent's `API_SERVER_MODEL_NAME`) to its gateway URL and key. Talaria
 exposes each as a model, so the workspace's model switcher becomes the agent switcher.
 
+### Two deployment shapes — both supported from one manifest
+
+Hermes runs a fleet in either of two shapes, and Talaria handles both with the *same* entry:
+
+- **A) Separate installs (canonical):** one Hermes gateway per agent, each on its own host
+  (`http://agent-x:8642`). List one entry per agent.
+- **B) Multiple profiles on one host:** one Hermes install, several profiles, each profile's API
+  server on its own port (`:8643`, `:8644`, …). List one entry per profile pointing at the same host /
+  different ports, and set `"profile"` so Talaria rewrites the forwarded `model` field to that profile.
+
+Optional per-entry fields (for profile-routed gateways):
+
+| Field | Purpose |
+|---|---|
+| `profile` | Hermes profile name; forwarded as the upstream `model` so the gateway routes to it. |
+| `upstreamModel` | Explicit override for the forwarded `model` (defaults to `profile ?? model`). |
+| `pathPrefix` | Prepended to upstream calls, e.g. `/p/<profile>`, for Hermes' emerging single-endpoint profile multiplex (`multiplex_profiles`; see NousResearch/hermes-agent #24913, #23735). Default: none. |
+
+The UI is unaffected either way — it only ever sees Talaria's exposed `model` ids. See
+[`fleet.example.json`](./fleet.example.json) for both shapes side by side.
+
 Local debug ports (bound to `127.0.0.1`): dashboard plane `:9119`, gateway plane `:8642`,
 mission-control `:8700`, workspace `:8711`.
 
