@@ -6,9 +6,24 @@
  */
 import { readFileSync } from "node:fs";
 
-/** One agent in the fleet manifest: a model name routed to a gateway with a key. */
+/**
+ * One agent in the fleet manifest. Talaria multiplexes a fleet of Hermes agents,
+ * and supports BOTH documented deployment shapes with the same entry:
+ *
+ *   A) Separate Hermes installs — one gateway per agent, each on its own host
+ *      (`http://agent-x:8642`). The common/canonical pattern.
+ *   B) Multiple Hermes *profiles* on one host — each profile's API server runs on
+ *      its own port (`http://host:8643`, `:8644`, …). Just list them as separate
+ *      entries pointing at the same host, different ports; set `profile` so the
+ *      forwarded `model` field targets that profile.
+ *
+ * For (A) or (B), Talaria routes the OpenAI `model` to the agent's gateway and
+ * injects that agent's key. `profile`/`upstreamModel`/`pathPrefix` are the hooks
+ * for profile-routed gateways (incl. Hermes' emerging single-endpoint multiplex,
+ * see NousResearch/hermes-agent #24913, #23735).
+ */
 export interface FleetAgent {
-  /** The model id exposed to the workspace (= the agent's API_SERVER_MODEL_NAME). */
+  /** The model id exposed to the workspace (what the UI's switcher shows). */
   model: string;
   /** The agent's real Hermes gateway base URL (e.g. http://agent-developer:8642). */
   url: string;
@@ -16,6 +31,27 @@ export interface FleetAgent {
   key: string;
   /** Optional display label / persona. */
   label?: string;
+  /** Hermes profile name on a profile/multiplexed gateway. When set (and no
+   *  explicit `upstreamModel`), the forwarded `model` field is rewritten to this
+   *  so the upstream routes to the right profile. */
+  profile?: string;
+  /** Explicit override for the `model` value sent upstream. Defaults to
+   *  `profile ?? model`. Use when the gateway routes by the model field. */
+  upstreamModel?: string;
+  /** Path prefix prepended to upstream requests (chat + sessions), e.g.
+   *  `/p/<profile>` for a future single-endpoint multiplex gateway. Default: none. */
+  pathPrefix?: string;
+}
+
+/** The `model` value Talaria forwards upstream for this agent (profile-aware). */
+export function upstreamModelFor(a: FleetAgent): string {
+  return a.upstreamModel ?? a.profile ?? a.model;
+}
+
+/** The upstream base + optional profile path prefix (no trailing slash). */
+export function upstreamBase(a: FleetAgent): string {
+  const prefix = (a.pathPrefix ?? "").replace(/\/$/, "");
+  return `${a.url}${prefix}`;
 }
 
 export interface TalariaConfig {
@@ -54,7 +90,15 @@ function loadFleet(): FleetAgent[] {
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((a) => a && typeof a.model === "string" && typeof a.url === "string")
-      .map((a) => ({ model: a.model, url: String(a.url).replace(/\/$/, ""), key: a.key ?? "", label: a.label }));
+      .map((a) => ({
+        model: a.model,
+        url: String(a.url).replace(/\/$/, ""),
+        key: a.key ?? "",
+        label: a.label,
+        profile: typeof a.profile === "string" ? a.profile : undefined,
+        upstreamModel: typeof a.upstreamModel === "string" ? a.upstreamModel : undefined,
+        pathPrefix: typeof a.pathPrefix === "string" ? a.pathPrefix : undefined,
+      }));
   } catch {
     return [];
   }

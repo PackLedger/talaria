@@ -24,6 +24,7 @@ import { Readable } from "node:stream";
 import httpProxy from "http-proxy";
 
 import type { TalariaConfig, FleetAgent } from "./config.js";
+import { upstreamBase, upstreamModelFor } from "./config.js";
 import { readBody, sendJson } from "./http-util.js";
 import { handleSessionsList, handleSessionByKey, isNamespacedSession } from "./sessions.js";
 
@@ -49,13 +50,14 @@ function handleModels(cfg: TalariaConfig, res: http.ServerResponse): void {
 /** POST /v1/chat/completions → route by `model` to the agent's gateway, stream back. */
 async function handleChat(cfg: TalariaConfig, req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   const body = await readBody(req, 20_000_000); // prompts can be large (context)
-  let model = "";
+  let parsed: Record<string, unknown>;
   try {
-    model = String(JSON.parse(body || "{}").model ?? "");
+    parsed = JSON.parse(body || "{}") as Record<string, unknown>;
   } catch {
     sendJson(res, 400, { error: "talaria: invalid JSON body" });
     return;
   }
+  const model = String(parsed.model ?? "");
   const agent = agentForModel(cfg, model) ?? defaultAgent(cfg);
   if (!agent) {
     sendJson(res, 503, { error: "talaria: no fleet agents configured" });
@@ -64,9 +66,19 @@ async function handleChat(cfg: TalariaConfig, req: http.IncomingMessage, res: ht
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (agent.key) headers["Authorization"] = `Bearer ${agent.key}`;
 
+  // Profile-routed gateways select the agent by the `model` field, so rewrite it
+  // to the agent's upstream model (profile name) when it differs. Dedicated
+  // single-model gateways ignore the field, so this is a no-op there.
+  const forwardModel = upstreamModelFor(agent);
+  let outBody = body;
+  if (forwardModel && forwardModel !== model) {
+    parsed.model = forwardModel;
+    outBody = JSON.stringify(parsed);
+  }
+
   let upstream: Response;
   try {
-    upstream = await fetch(`${agent.url}/v1/chat/completions`, { method: "POST", headers, body });
+    upstream = await fetch(`${upstreamBase(agent)}/v1/chat/completions`, { method: "POST", headers, body: outBody });
   } catch (err) {
     sendJson(res, 502, { error: `talaria: agent ${agent.model} unreachable: ${(err as Error).message}` });
     return;
@@ -92,7 +104,7 @@ export function startGatewayPlane(cfg: TalariaConfig): http.Server | null {
 
   const def = defaultAgent(cfg)!;
   // Non-chat gateway calls (sessions/health-detail/etc.) go to the default agent.
-  const proxy = httpProxy.createProxyServer({ target: def.url, changeOrigin: false });
+  const proxy = httpProxy.createProxyServer({ target: upstreamBase(def), changeOrigin: false });
   proxy.on("proxyReq", (proxyReq) => {
     if (def.key) proxyReq.setHeader("Authorization", `Bearer ${def.key}`);
   });

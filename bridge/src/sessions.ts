@@ -15,6 +15,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import type { TalariaConfig, FleetAgent } from "./config.js";
+import { upstreamBase } from "./config.js";
 import { readBody, sendJson } from "./http-util.js";
 
 export const SEP = "::";
@@ -46,7 +47,7 @@ export async function handleSessionsList(
   const results = await Promise.all(
     cfg.fleet.map(async (agent) => {
       try {
-        const r = await fetch(`${agent.url}/api/sessions?limit=${limit}&offset=0`, {
+        const r = await fetch(`${upstreamBase(agent)}/api/sessions?limit=${limit}&offset=0`, {
           headers: authHeaders(agent),
         });
         if (!r.ok) return [];
@@ -112,7 +113,7 @@ export async function handleSessionByKey(
 
   let upstream: Response;
   try {
-    upstream = await fetch(`${agent.url}${upstreamPath}`, init);
+    upstream = await fetch(`${upstreamBase(agent)}${upstreamPath}`, init);
   } catch (err) {
     sendJson(res, 502, { error: `talaria: agent ${model} unreachable: ${(err as Error).message}` });
     return;

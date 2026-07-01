@@ -36,6 +36,12 @@ All milestones below verified live against a running stack on 2026-07-01
   network; `scripts/verify-stack.sh` reproduces the M1–M3 verification end-to-end.
 - **Docs** — [`docs/m0-contract.md`](./docs/m0-contract.md) (the M0 contract diff + `:9119` allowlist),
   README with architecture + compatibility matrix.
+- **Fleet: both Hermes deployment shapes** (`bridge/src/config.ts`, `gatewayPlane.ts`, `sessions.ts`) —
+  a fleet entry now supports (A) separate installs (one gateway per agent) and (B) multiple Hermes
+  profiles on one host (each profile's API server on its own port). Optional `profile` / `upstreamModel`
+  / `pathPrefix` fields: Talaria rewrites the forwarded `model` to the profile when set and honours a
+  profile path prefix on chat + session calls. The UI only ever sees Talaria's exposed model ids.
+  `pathPrefix` seeds support for Hermes' emerging single-endpoint profile multiplex (`multiplex_profiles`).
 - **Phase 2 UI** (`ui/`) — the first slice of Talaria's own front end (Vite + TanStack Start, React 19,
   TypeScript), matching the hermes-workspace stack so its chat components lift cleanly.
   - **Mercury design system** (`ui/src/styles.css`, `ui/src/lib/theme.ts`) — hand-rolled Tailwind v4
