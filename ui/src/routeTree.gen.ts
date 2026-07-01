@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as ApiFleetRouteImport } from './routes/api/fleet'
 import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAgentsRouteImport } from './routes/api/agents'
@@ -50,6 +51,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiFleetRoute = ApiFleetRouteImport.update({
+  id: '/api/fleet',
+  path: '/api/fleet',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiConversationsRoute = ApiConversationsRouteImport.update({
   id: '/api/conversations',
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
+  '/api/fleet': typeof ApiFleetRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByTo {
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
+  '/api/fleet': typeof ApiFleetRoute
   '/': typeof AppIndexRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -249,6 +257,7 @@ export interface FileRoutesById {
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
+  '/api/fleet': typeof ApiFleetRoute
   '/_app/': typeof AppIndexRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -280,6 +289,7 @@ export interface FileRouteTypes {
     | '/api/agents'
     | '/api/chat'
     | '/api/conversations'
+    | '/api/fleet'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/api/agents'
     | '/api/chat'
     | '/api/conversations'
+    | '/api/fleet'
     | '/'
     | '/api/auth/google'
     | '/api/auth/logout'
@@ -336,6 +347,7 @@ export interface FileRouteTypes {
     | '/api/agents'
     | '/api/chat'
     | '/api/conversations'
+    | '/api/fleet'
     | '/_app/'
     | '/api/auth/google'
     | '/api/auth/logout'
@@ -352,6 +364,7 @@ export interface RootRouteChildren {
   ApiAgentsRoute: typeof ApiAgentsRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiConversationsRoute: typeof ApiConversationsRouteWithChildren
+  ApiFleetRoute: typeof ApiFleetRoute
   ApiAuthGoogleRoute: typeof ApiAuthGoogleRouteWithChildren
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthPasswordRoute: typeof ApiAuthPasswordRoute
@@ -381,6 +394,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/fleet': {
+      id: '/api/fleet'
+      path: '/api/fleet'
+      fullPath: '/api/fleet'
+      preLoaderRoute: typeof ApiFleetRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/conversations': {
       id: '/api/conversations'
@@ -620,6 +640,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAgentsRoute: ApiAgentsRoute,
   ApiChatRoute: ApiChatRoute,
   ApiConversationsRoute: ApiConversationsRouteWithChildren,
+  ApiFleetRoute: ApiFleetRoute,
   ApiAuthGoogleRoute: ApiAuthGoogleRouteWithChildren,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthPasswordRoute: ApiAuthPasswordRoute,

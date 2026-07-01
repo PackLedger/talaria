@@ -1,0 +1,41 @@
+import { useQuery } from '@tanstack/react-query'
+
+export interface FleetAgentStat {
+  id: string
+  label: string
+  role: string
+  conversations: number
+  messages: number
+  lastUsed: string | null
+}
+
+export interface FleetOverview {
+  agents: FleetAgentStat[]
+  source: 'gateway' | 'mock'
+  totals: { agents: number; conversations: number; messages: number; activeToday: number }
+}
+
+export function useFleet() {
+  return useQuery({
+    queryKey: ['fleet'],
+    queryFn: async (): Promise<FleetOverview | null> => {
+      const r = await fetch('/api/fleet', { credentials: 'same-origin' })
+      if (!r.ok) return null
+      return r.json()
+    },
+    refetchInterval: 15_000,
+  })
+}
+
+/** "3m ago" / "2h ago" / "just now" — compact relative time. */
+export function relativeTime(iso: string | null): string {
+  if (!iso) return 'never'
+  const diff = Date.now() - new Date(iso).getTime()
+  const s = Math.floor(diff / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
