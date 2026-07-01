@@ -1,5 +1,23 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Priority, Task, TaskActivity, TaskComment, TaskStatus } from '@/lib/task-const'
+
+/** Subscribe to a board's live event stream — multiplayer. On any event, refetch
+ *  the board's tasks (and the open task) so all viewers stay in sync. */
+export function useBoardLive(boardId: string | null) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!boardId) return
+    const es = new EventSource(`/api/boards/${boardId}/events`)
+    es.onmessage = () => {
+      // Refresh the board (cards) live. We deliberately do NOT refetch an open
+      // ticket here — that would thrash its editors mid-edit; the detail refetches
+      // on the viewer's own actions.
+      void qc.invalidateQueries({ queryKey: ['board-tasks', boardId] })
+    }
+    return () => es.close()
+  }, [boardId, qc])
+}
 
 export type BoardRole = 'owner' | 'editor' | 'viewer'
 export interface Board {

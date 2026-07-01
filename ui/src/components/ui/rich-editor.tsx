@@ -4,6 +4,19 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
+import {
+  Bold,
+  Italic,
+  Strikethrough,
+  Heading2,
+  List,
+  ListOrdered,
+  Quote,
+  Code,
+  SquareCode,
+  Link as LinkIcon,
+  type LucideIcon,
+} from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 // WYSIWYG editor for normies; markdown under the hood (agents write/read markdown
@@ -52,33 +65,43 @@ export function RichEditor({
 
 function Toolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null
-  const btn = (active: boolean) =>
-    cn('rounded px-1.5 py-0.5 text-xs transition-colors', active ? 'bg-card2 text-accent' : 'text-muted hover:text-fg')
+
+  const Btn = ({ icon: Icon, active, onClick, title }: { icon: LucideIcon; active: boolean; onClick: () => void; title: string }) => (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={cn('grid h-7 w-7 place-items-center rounded transition-colors', active ? 'bg-card2 text-accent' : 'text-muted hover:bg-card hover:text-fg')}
+    >
+      <Icon size={16} strokeWidth={2} />
+    </button>
+  )
+  const c = editor.chain().focus()
+
   return (
     <div className="flex flex-wrap items-center gap-0.5 border-b border-line-subtle px-2 py-1">
-      <button type="button" className={btn(editor.isActive('bold'))} onClick={() => editor.chain().focus().toggleBold().run()}><b>B</b></button>
-      <button type="button" className={btn(editor.isActive('italic'))} onClick={() => editor.chain().focus().toggleItalic().run()}><i>i</i></button>
-      <button type="button" className={btn(editor.isActive('strike'))} onClick={() => editor.chain().focus().toggleStrike().run()}><s>S</s></button>
-      <span className="mx-1 text-line">|</span>
-      <button type="button" className={btn(editor.isActive('heading', { level: 2 }))} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H</button>
-      <button type="button" className={btn(editor.isActive('bulletList'))} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</button>
-      <button type="button" className={btn(editor.isActive('orderedList'))} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</button>
-      <button type="button" className={btn(editor.isActive('blockquote'))} onClick={() => editor.chain().focus().toggleBlockquote().run()}>❝</button>
-      <button type="button" className={btn(editor.isActive('code'))} onClick={() => editor.chain().focus().toggleCode().run()}>{'</>'}</button>
-      <button type="button" className={btn(editor.isActive('codeBlock'))} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>▤</button>
-      <button
-        type="button"
-        className={btn(editor.isActive('link'))}
+      <Btn icon={Bold} title="Bold" active={editor.isActive('bold')} onClick={() => c.toggleBold().run()} />
+      <Btn icon={Italic} title="Italic" active={editor.isActive('italic')} onClick={() => c.toggleItalic().run()} />
+      <Btn icon={Strikethrough} title="Strikethrough" active={editor.isActive('strike')} onClick={() => c.toggleStrike().run()} />
+      <span className="mx-1 h-4 w-px bg-line-subtle" />
+      <Btn icon={Heading2} title="Heading" active={editor.isActive('heading', { level: 2 })} onClick={() => c.toggleHeading({ level: 2 }).run()} />
+      <Btn icon={List} title="Bulleted list" active={editor.isActive('bulletList')} onClick={() => c.toggleBulletList().run()} />
+      <Btn icon={ListOrdered} title="Numbered list" active={editor.isActive('orderedList')} onClick={() => c.toggleOrderedList().run()} />
+      <Btn icon={Quote} title="Quote" active={editor.isActive('blockquote')} onClick={() => c.toggleBlockquote().run()} />
+      <Btn icon={Code} title="Inline code" active={editor.isActive('code')} onClick={() => c.toggleCode().run()} />
+      <Btn icon={SquareCode} title="Code block" active={editor.isActive('codeBlock')} onClick={() => c.toggleCodeBlock().run()} />
+      <Btn
+        icon={LinkIcon}
+        title="Link"
+        active={editor.isActive('link')}
         onClick={() => {
           const prev = editor.getAttributes('link').href as string | undefined
           const url = window.prompt('Link URL', prev ?? 'https://')
           if (url === null) return
-          if (url === '') editor.chain().focus().unsetLink().run()
-          else editor.chain().focus().setLink({ href: url }).run()
+          if (url === '') c.unsetLink().run()
+          else c.setLink({ href: url }).run()
         }}
-      >
-        🔗
-      </button>
+      />
     </div>
   )
 }

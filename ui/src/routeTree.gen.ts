@@ -46,6 +46,7 @@ import { Route as ApiTasksIdReviewRouteImport } from './routes/api/tasks.$id.rev
 import { Route as ApiTasksIdCommentsRouteImport } from './routes/api/tasks.$id.comments'
 import { Route as ApiBoardsIdTasksRouteImport } from './routes/api/boards.$id.tasks'
 import { Route as ApiBoardsIdMembersRouteImport } from './routes/api/boards.$id.members'
+import { Route as ApiBoardsIdEventsRouteImport } from './routes/api/boards.$id.events'
 import { Route as ApiBoardsIdAgentsRouteImport } from './routes/api/boards.$id.agents'
 import { Route as ApiAuthGoogleCallbackRouteImport } from './routes/api/auth/google.callback'
 import { Route as ApiAgentsIdHeartbeatRouteImport } from './routes/api/agents.$id.heartbeat'
@@ -234,6 +235,11 @@ const ApiBoardsIdMembersRoute = ApiBoardsIdMembersRouteImport.update({
   path: '/members',
   getParentRoute: () => ApiBoardsIdRoute,
 } as any)
+const ApiBoardsIdEventsRoute = ApiBoardsIdEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => ApiBoardsIdRoute,
+} as any)
 const ApiBoardsIdAgentsRoute = ApiBoardsIdAgentsRouteImport.update({
   id: '/agents',
   path: '/agents',
@@ -284,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/agents': typeof ApiBoardsIdAgentsRoute
+  '/api/boards/$id/events': typeof ApiBoardsIdEventsRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
   '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
@@ -325,6 +332,7 @@ export interface FileRoutesByTo {
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/agents': typeof ApiBoardsIdAgentsRoute
+  '/api/boards/$id/events': typeof ApiBoardsIdEventsRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
   '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/agents': typeof ApiBoardsIdAgentsRoute
+  '/api/boards/$id/events': typeof ApiBoardsIdEventsRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
   '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
@@ -411,6 +420,7 @@ export interface FileRouteTypes {
     | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
     | '/api/boards/$id/agents'
+    | '/api/boards/$id/events'
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
     | '/api/tasks/$id/comments'
@@ -452,6 +462,7 @@ export interface FileRouteTypes {
     | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
     | '/api/boards/$id/agents'
+    | '/api/boards/$id/events'
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
     | '/api/tasks/$id/comments'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/api/agents/$id/heartbeat'
     | '/api/auth/google/callback'
     | '/api/boards/$id/agents'
+    | '/api/boards/$id/events'
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
     | '/api/tasks/$id/comments'
@@ -780,6 +792,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBoardsIdMembersRouteImport
       parentRoute: typeof ApiBoardsIdRoute
     }
+    '/api/boards/$id/events': {
+      id: '/api/boards/$id/events'
+      path: '/events'
+      fullPath: '/api/boards/$id/events'
+      preLoaderRoute: typeof ApiBoardsIdEventsRouteImport
+      parentRoute: typeof ApiBoardsIdRoute
+    }
     '/api/boards/$id/agents': {
       id: '/api/boards/$id/agents'
       path: '/agents'
@@ -856,12 +875,14 @@ const ApiAgentsRouteWithChildren = ApiAgentsRoute._addFileChildren(
 
 interface ApiBoardsIdRouteChildren {
   ApiBoardsIdAgentsRoute: typeof ApiBoardsIdAgentsRoute
+  ApiBoardsIdEventsRoute: typeof ApiBoardsIdEventsRoute
   ApiBoardsIdMembersRoute: typeof ApiBoardsIdMembersRoute
   ApiBoardsIdTasksRoute: typeof ApiBoardsIdTasksRoute
 }
 
 const ApiBoardsIdRouteChildren: ApiBoardsIdRouteChildren = {
   ApiBoardsIdAgentsRoute: ApiBoardsIdAgentsRoute,
+  ApiBoardsIdEventsRoute: ApiBoardsIdEventsRoute,
   ApiBoardsIdMembersRoute: ApiBoardsIdMembersRoute,
   ApiBoardsIdTasksRoute: ApiBoardsIdTasksRoute,
 }

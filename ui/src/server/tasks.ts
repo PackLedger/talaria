@@ -3,7 +3,14 @@
 // watchers, and a quality-review approval gate. Agents get assigned work via
 // heartbeat and report via PUT /api/tasks/:id.
 import { db } from './db/pg'
+import { publishBoard } from './realtime'
 import type { Priority, QualityReview, Task, TaskActivity, TaskComment, TaskStatus } from '@/lib/task-const'
+
+async function taskBoardId(id: string): Promise<string | null> {
+  const sql = await db()
+  const rows = await sql`select board_id from tasks where id = ${id}`
+  return rows.length ? (rows[0] as { board_id: string }).board_id : null
+}
 
 export { TASK_STATUSES, PRIORITIES } from '@/lib/task-const'
 export type { Priority, Task, TaskStatus } from '@/lib/task-const'
@@ -71,6 +78,7 @@ export async function createTask(input: {
   })
   await logActivity(id, input.createdBy, 'created', 'created this task')
   if (input.assignedTo) await logActivity(id, input.createdBy, 'assigned', `assigned to ${input.assignedTo}`)
+  publishBoard(input.boardId, { type: 'task', taskId: id })
   return (await getTask(id))!
 }
 
@@ -126,12 +134,15 @@ export async function updateTask(id: string, patch: TaskPatch, actor: string): P
     await logActivity(id, actor, 'assigned', patch.assignedTo ? `assigned to ${patch.assignedTo}` : 'unassigned')
   if (patch.priority && patch.priority !== cur.priority) await logActivity(id, actor, 'priority', `priority → ${patch.priority}`)
   if (patch.outcome && patch.outcome !== cur.outcome) await logActivity(id, actor, 'outcome', 'reported an outcome')
+  publishBoard(cur.boardId, { type: 'task', taskId: id })
   return getTask(id)
 }
 
 export async function deleteTask(id: string): Promise<void> {
   const sql = await db()
+  const boardId = await taskBoardId(id)
   await sql`delete from tasks where id = ${id}`
+  if (boardId) publishBoard(boardId, { type: 'task', taskId: id, deleted: true })
 }
 
 // ── Comments ─────────────────────────────────────────────────────────────────
@@ -150,6 +161,8 @@ export async function addComment(taskId: string, author: string, content: string
     returning id, author, content, parent_id as "parentId", created_at as "createdAt"
   `
   await logActivity(taskId, author, 'comment', 'commented')
+  const bid = await taskBoardId(taskId)
+  if (bid) publishBoard(bid, { type: 'comment', taskId })
   return rows[0] as unknown as TaskComment
 }
 
@@ -180,6 +193,8 @@ export async function addReview(taskId: string, reviewer: string, status: 'appro
   const sql = await db()
   await sql`insert into quality_reviews (task_id, reviewer, status, notes) values (${taskId}, ${reviewer}, ${status}, ${notes ?? null})`
   await logActivity(taskId, reviewer, 'review', status === 'approved' ? 'approved this task' : 'requested changes')
+  const bid = await taskBoardId(taskId)
+  if (bid) publishBoard(bid, { type: 'task', taskId })
 }
 
 // ── Activity ─────────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@
     "framer-motion": "^12.36.0",
     "highlight.js": "^11.11.1",
     "ioredis": "^5.11.1",
+    "lucide-react": "^0.469.0",
     "postgres": "^3.4.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

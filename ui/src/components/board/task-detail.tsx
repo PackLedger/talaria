@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -45,8 +45,12 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
   const [comment, setComment] = useState('')
   const [commentKey, setCommentKey] = useState(0)
 
+  // Initialise editable fields ONCE per task (not on every refetch) so live
+  // updates behind the modal don't reset what the user is typing.
+  const loadedRef = useRef<string | null>(null)
   useEffect(() => {
-    if (data?.task) {
+    if (data?.task && loadedRef.current !== data.task.id) {
+      loadedRef.current = data.task.id
       setTitle(data.task.title)
       setDescription(data.task.description ?? '')
       setTags(data.task.tags.join(', '))
@@ -118,7 +122,7 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                       onChange={setDescription}
                       onBlur={() => description !== (t.description ?? '') && save({ description: description || null })}
                       placeholder="Add detail…"
-                      minHeight="6rem"
+                      minHeight="16rem"
                     />
                   </Section>
 
