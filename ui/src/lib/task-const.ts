@@ -8,17 +8,31 @@ export type Priority = (typeof PRIORITIES)[number]
 export interface Task {
   id: string
   boardId: string
+  ticketRef: string | null
   title: string
   description: string | null
   status: TaskStatus
   priority: Priority
   assignedTo: string | null
   createdBy: string
-  result: string | null
   dueDate: string | null
   tags: string[]
+  estimatedHours: number | null
+  actualHours: number | null
+  outcome: string | null
+  resolution: string | null
+  errorMessage: string | null
   createdAt: string
   updatedAt: string
+  completedAt: string | null
+}
+
+export interface QualityReview {
+  id: string
+  reviewer: string
+  status: string
+  notes: string | null
+  createdAt: string
 }
 
 export interface TaskComment {
@@ -52,4 +66,11 @@ export const PRIORITY_COLOR: Record<Priority, string> = {
   medium: 'var(--theme-accent)',
   high: 'var(--theme-warning)',
   urgent: 'var(--theme-danger)',
+}
+
+export const PRIORITY_ICON: Record<Priority, string> = {
+  low: '▁',
+  medium: '▄',
+  high: '▆',
+  urgent: '⏻',
 }

@@ -40,6 +40,8 @@ import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
 import { Route as ApiAgentsRegisterRouteImport } from './routes/api/agents.register'
 import { Route as AppBoardsBoardIdRouteImport } from './routes/_app/boards/$boardId'
+import { Route as ApiTasksIdWatchersRouteImport } from './routes/api/tasks.$id.watchers'
+import { Route as ApiTasksIdReviewRouteImport } from './routes/api/tasks.$id.review'
 import { Route as ApiTasksIdCommentsRouteImport } from './routes/api/tasks.$id.comments'
 import { Route as ApiBoardsIdTasksRouteImport } from './routes/api/boards.$id.tasks'
 import { Route as ApiBoardsIdMembersRouteImport } from './routes/api/boards.$id.members'
@@ -200,6 +202,16 @@ const AppBoardsBoardIdRoute = AppBoardsBoardIdRouteImport.update({
   path: '/boards/$boardId',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiTasksIdWatchersRoute = ApiTasksIdWatchersRouteImport.update({
+  id: '/watchers',
+  path: '/watchers',
+  getParentRoute: () => ApiTasksIdRoute,
+} as any)
+const ApiTasksIdReviewRoute = ApiTasksIdReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => ApiTasksIdRoute,
+} as any)
 const ApiTasksIdCommentsRoute = ApiTasksIdCommentsRouteImport.update({
   id: '/comments',
   path: '/comments',
@@ -262,6 +274,8 @@ export interface FileRoutesByFullPath {
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
   '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
+  '/api/tasks/$id/review': typeof ApiTasksIdReviewRoute
+  '/api/tasks/$id/watchers': typeof ApiTasksIdWatchersRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -299,6 +313,8 @@ export interface FileRoutesByTo {
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
   '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
+  '/api/tasks/$id/review': typeof ApiTasksIdReviewRoute
+  '/api/tasks/$id/watchers': typeof ApiTasksIdWatchersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -338,6 +354,8 @@ export interface FileRoutesById {
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
   '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
+  '/api/tasks/$id/review': typeof ApiTasksIdReviewRoute
+  '/api/tasks/$id/watchers': typeof ApiTasksIdWatchersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -377,6 +395,8 @@ export interface FileRouteTypes {
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
     | '/api/tasks/$id/comments'
+    | '/api/tasks/$id/review'
+    | '/api/tasks/$id/watchers'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -414,6 +434,8 @@ export interface FileRouteTypes {
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
     | '/api/tasks/$id/comments'
+    | '/api/tasks/$id/review'
+    | '/api/tasks/$id/watchers'
   id:
     | '__root__'
     | '/_app'
@@ -452,6 +474,8 @@ export interface FileRouteTypes {
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
     | '/api/tasks/$id/comments'
+    | '/api/tasks/$id/review'
+    | '/api/tasks/$id/watchers'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -689,6 +713,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBoardsBoardIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/tasks/$id/watchers': {
+      id: '/api/tasks/$id/watchers'
+      path: '/watchers'
+      fullPath: '/api/tasks/$id/watchers'
+      preLoaderRoute: typeof ApiTasksIdWatchersRouteImport
+      parentRoute: typeof ApiTasksIdRoute
+    }
+    '/api/tasks/$id/review': {
+      id: '/api/tasks/$id/review'
+      path: '/review'
+      fullPath: '/api/tasks/$id/review'
+      preLoaderRoute: typeof ApiTasksIdReviewRouteImport
+      parentRoute: typeof ApiTasksIdRoute
+    }
     '/api/tasks/$id/comments': {
       id: '/api/tasks/$id/comments'
       path: '/comments'
@@ -830,10 +868,14 @@ const ApiAuthGoogleRouteWithChildren = ApiAuthGoogleRoute._addFileChildren(
 
 interface ApiTasksIdRouteChildren {
   ApiTasksIdCommentsRoute: typeof ApiTasksIdCommentsRoute
+  ApiTasksIdReviewRoute: typeof ApiTasksIdReviewRoute
+  ApiTasksIdWatchersRoute: typeof ApiTasksIdWatchersRoute
 }
 
 const ApiTasksIdRouteChildren: ApiTasksIdRouteChildren = {
   ApiTasksIdCommentsRoute: ApiTasksIdCommentsRoute,
+  ApiTasksIdReviewRoute: ApiTasksIdReviewRoute,
+  ApiTasksIdWatchersRoute: ApiTasksIdWatchersRoute,
 }
 
 const ApiTasksIdRouteWithChildren = ApiTasksIdRoute._addFileChildren(

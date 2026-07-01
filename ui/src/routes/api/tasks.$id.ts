@@ -13,14 +13,15 @@ const Patch = z.object({
   status: z.enum(AllStatuses).optional(),
   priority: z.enum(PRIORITIES).optional(),
   assignedTo: z.string().max(200).nullish(),
-  result: z.string().max(50_000).nullish(),
   dueDate: z.string().datetime().nullish(),
   tags: z.array(z.string().max(40)).max(20).optional(),
+  estimatedHours: z.number().min(0).max(10_000).nullish(),
+  actualHours: z.number().min(0).max(10_000).nullish(),
+  outcome: z.string().max(50_000).nullish(),
+  resolution: z.string().max(50_000).nullish(),
+  errorMessage: z.string().max(50_000).nullish(),
 })
 
-// GET → full task (task + comments + activity), board member.
-// PUT → update (board owner/editor via session, OR the agent via TALARIA_AGENT_KEY).
-// DELETE → board owner/editor.
 export const Route = createFileRoute('/api/tasks/$id')({
   server: {
     handlers: {
@@ -46,6 +47,9 @@ export const Route = createFileRoute('/api/tasks/$id')({
 
         const parsed = Patch.safeParse(await request.json().catch(() => null))
         if (!parsed.success) return json({ error: 'bad request' }, { status: 400 })
+        // Approval gate: agents can't self-complete — they land in quality_review
+        // for a human to approve to done.
+        if (agent && parsed.data.status === 'done') parsed.data.status = 'quality_review'
         const updated = await updateTask(params.id, parsed.data, actor)
         return json({ task: updated })
       },

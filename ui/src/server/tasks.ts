@@ -1,35 +1,49 @@
 // Task queue — Talaria owns it (ripped from mission-control). Tasks are cards on
-// a board, with comments, an activity log, and rich fields. Agents get assigned
-// work via heartbeat and report via PUT /api/tasks/:id.
+// a board with ticket refs, effort, structured results, comments, activity,
+// watchers, and a quality-review approval gate. Agents get assigned work via
+// heartbeat and report via PUT /api/tasks/:id.
 import { db } from './db/pg'
-import type { Priority, Task, TaskActivity, TaskComment, TaskStatus } from '@/lib/task-const'
+import type { Priority, QualityReview, Task, TaskActivity, TaskComment, TaskStatus } from '@/lib/task-const'
 
-// Re-export the shared constants/types for server routes' convenience.
 export { TASK_STATUSES, PRIORITIES } from '@/lib/task-const'
 export type { Priority, Task, TaskStatus } from '@/lib/task-const'
 
-const TASK_COLS = `id, board_id as "boardId", title, description, status, priority,
-  assigned_to as "assignedTo", created_by as "createdBy", result,
-  due_date as "dueDate", tags, created_at as "createdAt", updated_at as "updatedAt"`
+// Ticket ref is board.ticket_prefix + '-' + task.ticket_no.
+const TASK_SELECT = `select t.id, t.board_id as "boardId",
+  case when t.ticket_no is not null then coalesce(b.ticket_prefix,'TASK') || '-' || t.ticket_no end as "ticketRef",
+  t.title, t.description, t.status, t.priority, t.assigned_to as "assignedTo", t.created_by as "createdBy",
+  t.due_date as "dueDate", t.tags, t.estimated_hours as "estimatedHours", t.actual_hours as "actualHours",
+  t.outcome, t.resolution, t.error_message as "errorMessage",
+  t.created_at as "createdAt", t.updated_at as "updatedAt", t.completed_at as "completedAt"
+  from tasks t join boards b on b.id = t.board_id`
 
 export async function listBoardTasks(boardId: string): Promise<Task[]> {
   const sql = await db()
-  const rows = await sql.unsafe(`select ${TASK_COLS} from tasks where board_id = $1 order by updated_at desc`, [boardId])
-  return rows as unknown as Task[]
+  return (await sql.unsafe(`${TASK_SELECT} where t.board_id = $1 order by t.updated_at desc`, [boardId])) as unknown as Task[]
 }
 
 export async function getTask(id: string): Promise<Task | null> {
   const sql = await db()
-  const rows = await sql.unsafe(`select ${TASK_COLS} from tasks where id = $1`, [id])
+  const rows = await sql.unsafe(`${TASK_SELECT} where t.id = $1`, [id])
   return (rows[0] as unknown as Task) ?? null
 }
 
-export async function getTaskFull(
-  id: string,
-): Promise<{ task: Task; comments: TaskComment[]; activity: TaskActivity[] } | null> {
+export async function getTaskFull(id: string): Promise<{
+  task: Task
+  comments: TaskComment[]
+  activity: TaskActivity[]
+  watchers: string[]
+  reviews: QualityReview[]
+} | null> {
   const task = await getTask(id)
   if (!task) return null
-  return { task, comments: await listComments(id), activity: await listActivity(id) }
+  return {
+    task,
+    comments: await listComments(id),
+    activity: await listActivity(id),
+    watchers: await listWatchers(id),
+    reviews: await listReviews(id),
+  }
 }
 
 export async function createTask(input: {
@@ -39,28 +53,25 @@ export async function createTask(input: {
   priority?: Priority
   assignedTo?: string | null
   dueDate?: string | null
+  estimatedHours?: number | null
   createdBy: string
 }): Promise<Task> {
   const sql = await db()
   const status = input.assignedTo ? 'assigned' : 'inbox'
-  const rows = await sql.unsafe(
-    `insert into tasks (board_id, title, description, priority, assigned_to, due_date, created_by, status)
-     values ($1,$2,$3,$4,$5,$6,$7,$8) returning ${TASK_COLS}`,
-    [
-      input.boardId,
-      input.title,
-      input.description ?? null,
-      input.priority ?? 'medium',
-      input.assignedTo ?? null,
-      input.dueDate ?? null,
-      input.createdBy,
-      status,
-    ],
-  )
-  const task = rows[0] as unknown as Task
-  await logActivity(task.id, input.createdBy, 'created', `created this task`)
-  if (input.assignedTo) await logActivity(task.id, input.createdBy, 'assigned', `assigned to ${input.assignedTo}`)
-  return task
+  const id = await sql.begin(async (tx) => {
+    const seq = await tx`update boards set ticket_seq = ticket_seq + 1, updated_at = now() where id = ${input.boardId} returning ticket_seq`
+    const ticketNo = (seq[0] as { ticket_seq: number }).ticket_seq
+    const rows = await tx`
+      insert into tasks (board_id, ticket_no, title, description, priority, assigned_to, due_date, estimated_hours, created_by, status)
+      values (${input.boardId}, ${ticketNo}, ${input.title}, ${input.description ?? null}, ${input.priority ?? 'medium'},
+              ${input.assignedTo ?? null}, ${input.dueDate ?? null}, ${input.estimatedHours ?? null}, ${input.createdBy}, ${status})
+      returning id
+    `
+    return (rows[0] as { id: string }).id
+  })
+  await logActivity(id, input.createdBy, 'created', 'created this task')
+  if (input.assignedTo) await logActivity(id, input.createdBy, 'assigned', `assigned to ${input.assignedTo}`)
+  return (await getTask(id))!
 }
 
 export interface TaskPatch {
@@ -69,9 +80,13 @@ export interface TaskPatch {
   status?: TaskStatus
   priority?: Priority
   assignedTo?: string | null
-  result?: string | null
   dueDate?: string | null
   tags?: string[]
+  estimatedHours?: number | null
+  actualHours?: number | null
+  outcome?: string | null
+  resolution?: string | null
+  errorMessage?: string | null
 }
 
 export async function updateTask(id: string, patch: TaskPatch, actor: string): Promise<Task | null> {
@@ -79,32 +94,39 @@ export async function updateTask(id: string, patch: TaskPatch, actor: string): P
   const cur = await getTask(id)
   if (!cur) return null
 
+  const pick = <T>(v: T | undefined, fallback: T): T => (v === undefined ? fallback : v)
   const next = {
     title: patch.title ?? cur.title,
-    description: patch.description === undefined ? cur.description : patch.description,
-    assignedTo: patch.assignedTo === undefined ? cur.assignedTo : patch.assignedTo,
+    description: pick(patch.description, cur.description),
+    assignedTo: pick(patch.assignedTo, cur.assignedTo),
     priority: patch.priority ?? cur.priority,
-    result: patch.result === undefined ? cur.result : patch.result,
-    dueDate: patch.dueDate === undefined ? cur.dueDate : patch.dueDate,
+    dueDate: pick(patch.dueDate, cur.dueDate),
     tags: patch.tags ?? cur.tags,
-    status: (patch.status ??
-      (patch.assignedTo && cur.status === 'inbox' ? 'assigned' : cur.status)) as TaskStatus,
+    estimatedHours: pick(patch.estimatedHours, cur.estimatedHours),
+    actualHours: pick(patch.actualHours, cur.actualHours),
+    outcome: pick(patch.outcome, cur.outcome),
+    resolution: pick(patch.resolution, cur.resolution),
+    errorMessage: pick(patch.errorMessage, cur.errorMessage),
+    status: (patch.status ?? (patch.assignedTo && cur.status === 'inbox' ? 'assigned' : cur.status)) as TaskStatus,
   }
+  const completedAt = next.status === 'done' ? (cur.completedAt ?? new Date().toISOString()) : null
 
-  const rows = await sql.unsafe(
-    `update tasks set title=$2, description=$3, status=$4, priority=$5, assigned_to=$6,
-       result=$7, due_date=$8, tags=$9::jsonb, updated_at=now() where id=$1 returning ${TASK_COLS}`,
-    [id, next.title, next.description, next.status, next.priority, next.assignedTo, next.result, next.dueDate, JSON.stringify(next.tags)],
-  )
-  const task = rows[0] as unknown as Task
+  await sql`
+    update tasks set title=${next.title}, description=${next.description}, status=${next.status},
+      priority=${next.priority}, assigned_to=${next.assignedTo}, due_date=${next.dueDate},
+      tags=${sql.json(next.tags as unknown as Parameters<typeof sql.json>[0])},
+      estimated_hours=${next.estimatedHours}, actual_hours=${next.actualHours},
+      outcome=${next.outcome}, resolution=${next.resolution}, error_message=${next.errorMessage},
+      completed_at=${completedAt}, updated_at=now()
+    where id=${id}
+  `
 
-  // Activity log for the meaningful changes.
   if (patch.status && patch.status !== cur.status) await logActivity(id, actor, 'status', `moved to ${patch.status}`)
   if (patch.assignedTo !== undefined && patch.assignedTo !== cur.assignedTo)
     await logActivity(id, actor, 'assigned', patch.assignedTo ? `assigned to ${patch.assignedTo}` : 'unassigned')
   if (patch.priority && patch.priority !== cur.priority) await logActivity(id, actor, 'priority', `priority → ${patch.priority}`)
-  if (patch.result && patch.result !== cur.result) await logActivity(id, actor, 'result', 'reported a result')
-  return task
+  if (patch.outcome && patch.outcome !== cur.outcome) await logActivity(id, actor, 'outcome', 'reported an outcome')
+  return getTask(id)
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -115,13 +137,11 @@ export async function deleteTask(id: string): Promise<void> {
 // ── Comments ─────────────────────────────────────────────────────────────────
 export async function listComments(taskId: string): Promise<TaskComment[]> {
   const sql = await db()
-  const rows = await sql`
+  return (await sql`
     select id, author, content, parent_id as "parentId", created_at as "createdAt"
     from task_comments where task_id = ${taskId} order by created_at asc
-  `
-  return rows as unknown as TaskComment[]
+  `) as unknown as TaskComment[]
 }
-
 export async function addComment(taskId: string, author: string, content: string, parentId?: string): Promise<TaskComment> {
   const sql = await db()
   const rows = await sql`
@@ -133,19 +153,46 @@ export async function addComment(taskId: string, author: string, content: string
   return rows[0] as unknown as TaskComment
 }
 
+// ── Watchers ─────────────────────────────────────────────────────────────────
+export async function listWatchers(taskId: string): Promise<string[]> {
+  const sql = await db()
+  const rows = await sql`select watcher from task_watchers where task_id = ${taskId} order by created_at asc`
+  return (rows as unknown as Array<{ watcher: string }>).map((r) => r.watcher)
+}
+export async function addWatcher(taskId: string, watcher: string): Promise<void> {
+  const sql = await db()
+  await sql`insert into task_watchers (task_id, watcher) values (${taskId}, ${watcher}) on conflict do nothing`
+}
+export async function removeWatcher(taskId: string, watcher: string): Promise<void> {
+  const sql = await db()
+  await sql`delete from task_watchers where task_id = ${taskId} and watcher = ${watcher}`
+}
+
+// ── Quality reviews (approval gate) ──────────────────────────────────────────
+export async function listReviews(taskId: string): Promise<QualityReview[]> {
+  const sql = await db()
+  return (await sql`
+    select id, reviewer, status, notes, created_at as "createdAt"
+    from quality_reviews where task_id = ${taskId} order by created_at desc
+  `) as unknown as QualityReview[]
+}
+export async function addReview(taskId: string, reviewer: string, status: 'approved' | 'rejected', notes?: string): Promise<void> {
+  const sql = await db()
+  await sql`insert into quality_reviews (task_id, reviewer, status, notes) values (${taskId}, ${reviewer}, ${status}, ${notes ?? null})`
+  await logActivity(taskId, reviewer, 'review', status === 'approved' ? 'approved this task' : 'requested changes')
+}
+
 // ── Activity ─────────────────────────────────────────────────────────────────
 export async function logActivity(taskId: string, actor: string, type: string, description: string): Promise<void> {
   const sql = await db()
   await sql`insert into task_activity (task_id, actor, type, description) values (${taskId}, ${actor}, ${type}, ${description})`
 }
-
 export async function listActivity(taskId: string): Promise<TaskActivity[]> {
   const sql = await db()
-  const rows = await sql`
+  return (await sql`
     select id, actor, type, description, created_at as "createdAt"
     from task_activity where task_id = ${taskId} order by created_at desc limit 100
-  `
-  return rows as unknown as TaskActivity[]
+  `) as unknown as TaskActivity[]
 }
 
 /** Work assigned to an agent (by name), across all boards — for heartbeat. */

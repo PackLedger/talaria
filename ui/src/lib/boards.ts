@@ -57,11 +57,19 @@ export function useBoardMembers(boardId: string | null) {
   })
 }
 
+export interface TaskFull {
+  task: Task
+  comments: TaskComment[]
+  activity: TaskActivity[]
+  watchers: string[]
+  reviews: import('@/lib/task-const').QualityReview[]
+}
+
 export function useTask(taskId: string | null) {
   return useQuery({
     queryKey: ['task', taskId],
     enabled: !!taskId,
-    queryFn: async (): Promise<{ task: Task; comments: TaskComment[]; activity: TaskActivity[] } | null> => {
+    queryFn: async (): Promise<TaskFull | null> => {
       const r = await fetch(`/api/tasks/${taskId}`, { credentials: 'same-origin' })
       if (!r.ok) return null
       return r.json()
@@ -73,12 +81,30 @@ export function useTask(taskId: string | null) {
 export const createBoard = (name: string) => post('/api/boards', { name }).then(j)
 export const createTask = (
   boardId: string,
-  input: { title: string; description?: string; priority?: Priority; assignedTo?: string | null; dueDate?: string | null },
+  input: {
+    title: string
+    description?: string
+    priority?: Priority
+    assignedTo?: string | null
+    dueDate?: string | null
+    estimatedHours?: number | null
+  },
 ) => post(`/api/boards/${boardId}/tasks`, input).then(j)
 
 export const addComment = (taskId: string, content: string) => post(`/api/tasks/${taskId}/comments`, { content }).then(j)
 export const deleteTask = (taskId: string) =>
   fetch(`/api/tasks/${taskId}`, { method: 'DELETE', credentials: 'same-origin' })
+
+export const watchTask = (taskId: string, watcher: string) => post(`/api/tasks/${taskId}/watchers`, { watcher })
+export const unwatchTask = (taskId: string, watcher: string) =>
+  fetch(`/api/tasks/${taskId}/watchers`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ watcher }),
+  })
+export const reviewTask = (taskId: string, status: 'approved' | 'rejected', notes?: string) =>
+  post(`/api/tasks/${taskId}/review`, { status, notes }).then(j)
 
 export const updateTask = (
   taskId: string,
@@ -88,9 +114,13 @@ export const updateTask = (
     status?: TaskStatus
     priority?: Priority
     assignedTo?: string | null
-    result?: string | null
     dueDate?: string | null
     tags?: string[]
+    estimatedHours?: number | null
+    actualHours?: number | null
+    outcome?: string | null
+    resolution?: string | null
+    errorMessage?: string | null
   },
 ) =>
   fetch(`/api/tasks/${taskId}`, {
