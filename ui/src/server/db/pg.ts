@@ -72,6 +72,40 @@ const MIGRATIONS: string[] = [
      created_at timestamptz not null default now(),
      updated_at timestamptz not null default now()
    )`,
+  // Boards — user-owned kanban boards, shareable across the team.
+  `create table if not exists boards (
+     id uuid primary key default gen_random_uuid(),
+     name text not null,
+     owner_id uuid not null references users(id) on delete cascade,
+     created_at timestamptz not null default now(),
+     updated_at timestamptz not null default now()
+   )`,
+  // Membership = sharing. role: owner | editor | viewer.
+  `create table if not exists board_members (
+     board_id uuid not null references boards(id) on delete cascade,
+     user_id uuid not null references users(id) on delete cascade,
+     role text not null default 'editor',
+     created_at timestamptz not null default now(),
+     primary key (board_id, user_id)
+   )`,
+  // Task queue — Talaria's own (ripped from mission-control's tasks), scoped to a board.
+  `create table if not exists tasks (
+     id uuid primary key default gen_random_uuid(),
+     board_id uuid not null references boards(id) on delete cascade,
+     title text not null,
+     description text,
+     status text not null default 'inbox',
+     priority text not null default 'medium',
+     assigned_to text,
+     created_by text not null default 'user',
+     result text,
+     tags jsonb not null default '[]',
+     metadata jsonb not null default '{}',
+     created_at timestamptz not null default now(),
+     updated_at timestamptz not null default now()
+   )`,
+  `create index if not exists tasks_board_idx on tasks(board_id, status, updated_at desc)`,
+  `create index if not exists tasks_assignee_idx on tasks(assigned_to)`,
 ]
 
 function ensureMigrated(): Promise<void> {

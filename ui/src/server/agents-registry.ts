@@ -46,8 +46,9 @@ export async function registerAgent(input: RegisterInput): Promise<{ id: string;
   return rows[0] as { id: string; name: string }
 }
 
-/** Heartbeat by registry id — refresh last_seen; lift offline → idle. */
-export async function heartbeatAgent(id: string, activity?: string): Promise<boolean> {
+/** Heartbeat by registry id — refresh last_seen; lift offline → idle. Returns the
+ *  agent's name (for assigned-work lookup) or null if unknown. */
+export async function heartbeatAgent(id: string, activity?: string): Promise<string | null> {
   const sql = await db()
   const rows = await sql`
     update fleet_agents set
@@ -56,9 +57,9 @@ export async function heartbeatAgent(id: string, activity?: string): Promise<boo
       last_activity = coalesce(${activity ?? null}, last_activity),
       updated_at = now()
     where id = ${id}
-    returning id
+    returning name
   `
-  return rows.length > 0
+  return rows.length ? (rows[0] as { name: string }).name : null
 }
 
 /** Seed fleet names (from /v1/models) so agents appear before they heartbeat. */
