@@ -78,14 +78,13 @@ services:
     depends_on:
       - talaria-bridge
     environment:
-      # THE LINCHPIN: point the dashboard mission API at Talaria (config-only).
-      # Talaria SERVES /api/conductor/* (which the real dashboard 404s) and proxies
-      # everything else — so the workspace uses remote dispatch, not native-swarm.
+      # Both planes point at Talaria. Dashboard plane: Talaria serves /api/conductor/*
+      # (which the real dashboard 404s) + the kanban board from mission-control, and
+      # proxies the rest. Gateway plane: Talaria multiplexes the whole fleet, so the
+      # workspace's model switcher lists every agent and chat/sessions route per-agent.
       HERMES_DASHBOARD_URL: ${HERMES_DASHBOARD_URL:-http://talaria-bridge:9119}
-      # Chat/streaming + gateway go STRAIGHT to a real agent — never via Talaria.
-      # TODO(M2): decide which gateway (single agent vs identity-proxy router).
-      HERMES_API_URL: ${HERMES_API_URL:-http://agent-developer:8642}
-      HERMES_API_TOKEN: ${HERMES_API_TOKEN:-} # gateway bearer = the agent's API_SERVER_KEY, if set
+      HERMES_API_URL: ${HERMES_API_URL:-http://talaria-bridge:8642}
+      HERMES_API_TOKEN: ${HERMES_API_TOKEN:-} # ignored by the gateway plane; per-agent keys live in the fleet manifest
       HERMES_PASSWORD: ${HERMES_PASSWORD:-} # REQUIRED by the workspace for non-loopback binds
       HERMES_HOME: /home/workspace/.hermes
       HERMES_WORKSPACE_DIR: /workspace

@@ -1,53 +1,58 @@
 # Talaria stack
 
-Wires **hermes-workspace** (UI) + **mission-control** (brain) + **talaria-bridge** (seam) together
-and onto the live PackLedger fleet. Standalone compose that joins the shared `edge` network created
-by the root `packledger-services` compose.
+Brings up the whole thing: **hermes-workspace** (the cockpit) + **mission-control** (the ops console)
++ **talaria-bridge** (both planes), wired to your fleet. `docker compose up` and you have the fleet
+framework running.
 
 ## Topology
 
 ```
-workspace.packledger.co ──(cloudflared, edge net)──► hermes-workspace
-   HERMES_DASHBOARD_URL ─────────────────────────────► talaria-bridge :9119 ──► kanban-dashboard :9119  (live fleet dashboard, pass-through)
-   HERMES_API_URL       ─────────────────────────────► agent-developer :8642   (live fleet gateway, NEVER via bridge)
-                                                        talaria-bridge ─(intercept, M2)─► mission-control  ◄─register/heartbeat─ live 8 agents (Talaria plugin)
+                         hermes-workspace
+        HERMES_API_URL ──►│              │◄── HERMES_DASHBOARD_URL
+       (gateway plane)    ▼              ▼    (dashboard plane)
+                  talaria-bridge :8642   talaria-bridge :9119
+                        │                      │
+       routes /v1/chat by model               ├─ serves /api/conductor/* + kanban ─► mission-control
+       + merges /api/sessions                 └─ proxies the rest ─► real Hermes dashboard
+                        │
+                        ▼
+        agent-1 … agent-N gateways (the fleet, from fleet.json)
 ```
 
 ## Prereqs
 
 - The root `packledger-services` stack is up (creates the `packledger-services_edge` network).
-- The `ai/orchestration` fleet is up (provides `kanban-dashboard`, `agent-developer`, … on `edge`).
+- Your Hermes fleet is up. Talaria reaches the agent gateways over the fleet network — this stack
+  joins `ai_default` (the `ai/orchestration` fleet net); change it in `docker-compose.yml` if yours
+  differs.
 
 ## Run
 
 ```bash
-cp talaria/stack/.env.example talaria/stack/.env      # then fill MISSION_CONTROL_API_KEY etc.
-docker compose -f talaria/stack/docker-compose.yml config          # validate
-docker compose -f talaria/stack/docker-compose.yml --env-file talaria/stack/.env up -d --build
+cp .env.example .env                 # fill MISSION_CONTROL_API_KEY + HERMES_PASSWORD
+cp fleet.example.json fleet.json     # declare your agents: model → gateway url + API_SERVER_KEY
+docker compose up -d --build
+../scripts/verify-stack.sh           # should print ALL PASS
 ```
 
-Local debug ports (bound to `127.0.0.1` only): bridge `:9119`, mission-control `:8700`,
-workspace `:8711`.
+`fleet.json` is the **fleet manifest** (and is gitignored, since it holds the per-agent keys). Each
+entry maps a model name (the agent's `API_SERVER_MODEL_NAME`) to its gateway URL and key. Talaria
+exposes each as a model, so the workspace's model switcher becomes the agent switcher.
+
+Local debug ports (bound to `127.0.0.1`): dashboard plane `:9119`, gateway plane `:8642`,
+mission-control `:8700`, workspace `:8711`.
 
 ## Expose (Cloudflare tunnel)
 
-Routing lives in the Cloudflare dashboard (Zero Trust → Networks → Tunnels → Public Hostnames), not
-in this repo. Add:
+Routing lives in the Cloudflare dashboard (Zero Trust → Networks → Tunnels → Public Hostnames). Add
+`workspace.packledger.co` → `http://hermes-workspace:3000` and gate it with Cloudflare Access, like
+the other AI UIs.
 
-| Hostname | Service (over `edge`) |
-|---|---|
-| `workspace.packledger.co` | `http://hermes-workspace:3000` |
+## Notes
 
-Gate it with Cloudflare Access (Google OAuth), consistent with the other AI UIs.
-
-## Status / TODO
-
-- **Images are unpinned** (`TODO(M5)`): `mission-control` and `hermes-workspace` reference
-  placeholder tags; both likely need building from source. `docker compose config` validates the
-  wiring without pulling. Actually starting them is M0→M5 work.
-- **`TODO(M0)`**: confirm mission-control's internal port + env keys; confirm hermes-workspace's
-  internal port; enumerate the `:9119` mission-route allowlist (drives `../bridge/src/intercept.ts`).
-- **`HERMES_API_URL`** currently points at `agent-developer`; revisit whether it should target an
-  identity-proxy router across the fleet (PLAN.md open question #1, M2).
-
-See [`../PLAN.md`](../PLAN.md) for the full milestone plan and compatibility-matrix requirements.
+- **mission-control has no published image** — build it from source (pinned commit `d09e608`); see the
+  comment in [`docker-compose.yml`](./docker-compose.yml).
+- **hermes-workspace** is the published `ghcr.io/outsourc-e/hermes-workspace:latest`.
+- Two of the workspace's surfaces still ride the workspace-native path (out of Talaria's reach): the
+  dedicated *agents-online* widget resolves to the fleet's default agent. Chat, sessions, missions,
+  and the kanban board are all per-agent / fleet-wide today.
