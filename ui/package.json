@@ -1,0 +1,37 @@
+{
+  "name": "talaria-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Talaria's own UI — one product, two faces (simple cockpit + advanced ops) over the two-plane fleet brain.",
+  "scripts": {
+    "dev": "vite dev --port 5273",
+    "build": "vite build",
+    "start": "node .output/server/index.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.90.21",
+    "@tanstack/react-router": "1.166.7",
+    "@tanstack/react-router-ssr-query": "1.166.7",
+    "@tanstack/react-start": "1.166.8",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.36.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/router-plugin": "1.166.7",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.7.2",
+    "vite": "^7.3.2",
+    "vite-tsconfig-paths": "^6.0.2"
+  }
+}

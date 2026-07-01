@@ -36,6 +36,17 @@ All milestones below verified live against a running stack on 2026-07-01
   network; `scripts/verify-stack.sh` reproduces the M1–M3 verification end-to-end.
 - **Docs** — [`docs/m0-contract.md`](./docs/m0-contract.md) (the M0 contract diff + `:9119` allowlist),
   README with architecture + compatibility matrix.
+- **Phase 2 UI** (`ui/`) — the first slice of Talaria's own front end (Vite + TanStack Start, React 19,
+  TypeScript), matching the hermes-workspace stack so its chat components lift cleanly.
+  - **Mercury design system** (`ui/src/styles.css`, `ui/src/lib/theme.ts`) — hand-rolled Tailwind v4
+    tokens, dark (`mercury`) + light (`mercury-light`), violet→magenta neon on Mercury-planet neutrals.
+    Reuses hermes-workspace's `--theme-*` token contract to keep component lifts frictionless.
+  - **Pluggable auth**, each provider independently enable-able (flag **+** secrets required):
+    registry (`ui/src/server/auth/config.ts`), stateless HMAC-signed sessions, **Google OAuth**
+    (start + callback) and username/password, with routes `/api/auth/{providers,session,google,
+    google/callback,password,logout}`. Login screen renders only the enabled providers. Verified live:
+    session round-trip, logout, tampered-cookie rejection, provider gating.
+  - Both upstreams vendored under `vendor/` (gitignored) as lift sources.
 
 ### Key findings (verified against source)
 - The Hermes dashboard has **no** `/api/conductor/*` routes — Talaria *serves* them (adds capability),

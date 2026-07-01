@@ -1,0 +1,187 @@
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { useQueryClient } from '@tanstack/react-query'
+import { Brand } from '@/components/brand'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { useProviders } from '@/lib/session'
+
+const ERROR_COPY: Record<string, string> = {
+  google_denied: 'Google sign-in was cancelled.',
+  google_disabled: 'Google sign-in is not enabled.',
+  bad_state: 'Sign-in expired or was tampered with. Please try again.',
+  exchange_failed: 'Could not complete Google sign-in. Please try again.',
+  not_allowed: 'That account is not allowed to access this Talaria.',
+}
+
+export function LoginScreen({ error }: { error?: string }) {
+  const { data, isLoading } = useProviders()
+  const providers = data?.providers ?? []
+  const configured = data?.configured ?? true
+
+  const hasGoogle = providers.some((p) => p.id === 'google')
+  const hasPassword = providers.some((p) => p.id === 'password')
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center px-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="mercury-panel w-full max-w-sm rounded-2xl p-8"
+      >
+        <div className="mb-6 flex flex-col items-center gap-2 text-center">
+          <Brand showTag className="flex-col" />
+        </div>
+
+        <p className="theme-muted mb-6 text-center text-sm">
+          Sign in to command your fleet.
+        </p>
+
+        {error && ERROR_COPY[error] && (
+          <div
+            className="mb-4 rounded-lg border px-3 py-2 text-center text-sm"
+            style={{
+              borderColor: 'var(--theme-danger)',
+              color: 'var(--theme-danger)',
+              background: 'color-mix(in srgb, var(--theme-danger) 8%, transparent)',
+            }}
+          >
+            {ERROR_COPY[error]}
+          </div>
+        )}
+
+        {!configured && (
+          <div className="theme-muted mb-4 rounded-lg border theme-border px-3 py-2 text-center text-xs">
+            Server auth isn’t configured yet (set <code>AUTH_SECRET</code> and enable a provider).
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="theme-muted py-6 text-center text-sm">Loading sign-in options…</div>
+        ) : providers.length === 0 ? (
+          <div className="theme-muted py-4 text-center text-sm">
+            No sign-in providers are enabled.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {hasGoogle && <GoogleButton />}
+            {hasGoogle && hasPassword && <Divider />}
+            {hasPassword && <PasswordForm />}
+          </div>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
+function GoogleButton() {
+  return (
+    <a
+      href="/api/auth/google"
+      className="theme-card theme-border flex h-11 items-center justify-center gap-3 rounded-xl border font-medium transition-all hover:border-[var(--theme-accent-border)] hover:shadow-[var(--theme-glow)]"
+    >
+      <GoogleIcon className="h-5 w-5" />
+      <span className="theme-text">Continue with Google</span>
+    </a>
+  )
+}
+
+function Divider() {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="theme-border h-px flex-1 border-t" />
+      <span className="theme-muted text-xs uppercase tracking-wider">or</span>
+      <div className="theme-border h-px flex-1 border-t" />
+    </div>
+  )
+}
+
+function PasswordForm() {
+  const qc = useQueryClient()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setErr(null)
+    try {
+      const res = await fetch('/api/auth/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ username, password }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (!res.ok || !data.ok) {
+        setErr(data.error ?? 'Sign-in failed')
+        return
+      }
+      await qc.invalidateQueries({ queryKey: ['session'] })
+    } catch {
+      setErr('Network error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const inputCls =
+    'theme-input theme-border theme-text h-11 rounded-xl border px-3 outline-none transition-colors focus:border-[var(--theme-accent)] placeholder:opacity-60'
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3">
+      <input
+        className={inputCls}
+        placeholder="Username"
+        autoComplete="username"
+        value={username}
+        onChange={(e) => setUsername(e.target.value)}
+      />
+      <input
+        className={inputCls}
+        placeholder="Password"
+        type="password"
+        autoComplete="current-password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      {err && <div className="text-sm" style={{ color: 'var(--theme-danger)' }}>{err}</div>}
+      <button
+        type="submit"
+        disabled={busy || !username || !password}
+        className="mercury-gradient h-11 rounded-xl font-semibold text-white shadow-[var(--theme-glow)] transition-opacity disabled:opacity-50"
+      >
+        {busy ? 'Signing in…' : 'Sign in'}
+      </button>
+    </form>
+  )
+}
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38Z"
+      />
+    </svg>
+  )
+}
