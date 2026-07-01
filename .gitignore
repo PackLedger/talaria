@@ -12,6 +12,9 @@ dist/
 __pycache__/
 *.pyc
 
+# Vendored upstreams for local builds (e.g. mission-control source) — not part of Talaria
+vendor/
+
 # OS / editor
 .DS_Store
 *.swp

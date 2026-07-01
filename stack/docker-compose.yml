@@ -37,38 +37,53 @@ services:
 
   # ── The brain: agent-agnostic fleet manager (task queue + cost ledger owner) ──
   mission-control:
-    # TODO(M5): pin a real image/tag + compat matrix. builderz-labs/mission-control
-    # may require building from source (add a build: context once vendored in M0/M5).
-    image: ${MISSION_CONTROL_IMAGE:-ghcr.io/builderz-labs/mission-control:latest}
+    # M0 finding: NO published image exists — mission-control builds locally. Vendor
+    # + build it once:  git clone https://github.com/builderz-labs/mission-control \
+    #   talaria/vendor/mission-control && docker build -t mission-control:latest \
+    #   talaria/vendor/mission-control
+    # TODO(M5): pin a commit + compat matrix; fold in upstream docker-compose.hardened.yml
+    # (read_only rootfs, cap_drop) for production.
+    image: ${MISSION_CONTROL_IMAGE:-mission-control:latest}
     restart: unless-stopped
     environment:
-      # TODO(M0): confirm env keys + internal port against mission-control docs.
-      MISSION_CONTROL_API_KEY_FILE: /run/secrets/talaria_mc_key
-    secrets:
-      - talaria_mc_key
+      PORT: "3000"
+      # Shared API key the bridge + agents' Talaria plugin present as `x-api-key`.
+      # mission-control reads the global key from env API_KEY; AUTH_SECRET auto-generates
+      # into /app/.data on first boot. (M0: src/lib/auth.ts, docker-entrypoint.sh)
+      API_KEY: ${MISSION_CONTROL_API_KEY:?set MISSION_CONTROL_API_KEY — see stack/.env.example}
+      # OpenClaw backend gateway — optional for the REST board; wire in M5.
+      # OPENCLAW_GATEWAY_HOST: openclaw-gateway
+      # OPENCLAW_GATEWAY_PORT: "18789"
     volumes:
-      - mission-control-data:/data # SQLite: durable task queue + cost ledger
+      - mission-control-data:/app/.data # SQLite mission-control.db + generated secrets
     networks: [default, edge]
     ports:
-      - "127.0.0.1:8700:3000" # TODO(M0): confirm mission-control's internal port
+      - "127.0.0.1:8700:3000" # internal listen port is 3000 (M0-confirmed)
 
   # ── The UI: Hermes-native workspace. Config-only integration (one env var). ──
   hermes-workspace:
-    # TODO(M5): pin a real image/tag. outsourc-e/hermes-workspace may require
-    # building from source (add a build: context once vendored in M0/M5).
+    # M0-confirmed: published image, internal port 3000.
     image: ${HERMES_WORKSPACE_IMAGE:-ghcr.io/outsourc-e/hermes-workspace:latest}
     restart: unless-stopped
     depends_on:
       - talaria-bridge
     environment:
       # THE LINCHPIN: point the dashboard mission API at Talaria (config-only).
+      # Talaria SERVES /api/conductor/* (which the real dashboard 404s) and proxies
+      # everything else — so the workspace uses remote dispatch, not native-swarm.
       HERMES_DASHBOARD_URL: ${HERMES_DASHBOARD_URL:-http://talaria-bridge:9119}
       # Chat/streaming + gateway go STRAIGHT to a real agent — never via Talaria.
-      # TODO(M0/M2): decide which gateway (single agent vs identity-proxy router).
+      # TODO(M2): decide which gateway (single agent vs identity-proxy router).
       HERMES_API_URL: ${HERMES_API_URL:-http://agent-developer:8642}
+      HERMES_API_TOKEN: ${HERMES_API_TOKEN:-} # gateway bearer = the agent's API_SERVER_KEY, if set
+      HERMES_PASSWORD: ${HERMES_PASSWORD:-} # REQUIRED by the workspace for non-loopback binds
+      HERMES_HOME: /home/workspace/.hermes
+      HERMES_WORKSPACE_DIR: /workspace
+      COOKIE_SECURE: ${COOKIE_SECURE:-true} # behind the CF/HTTPS tunnel
+      TRUST_PROXY: ${TRUST_PROXY:-true}
     networks: [default, edge]
     ports:
-      - "127.0.0.1:8711:3000" # TODO(M5): confirm hermes-workspace's internal port
+      - "127.0.0.1:8711:3000" # internal listen port is 3000 (M0-confirmed)
 
 secrets:
   # Shared mission-control API key. Sourced from the MISSION_CONTROL_API_KEY env

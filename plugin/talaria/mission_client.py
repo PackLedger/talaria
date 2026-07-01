@@ -5,15 +5,15 @@ Every method is defensive: network/parse failures return a falsy result and log
 at debug — the plugin must NEVER break an agent turn because the fleet brain is
 unreachable.
 
-Endpoint shapes are the verified mission-control OpenAPI 3.1 surface:
-  POST /api/agents                    → register this agent, returns {id, ...}
-  GET  /api/agents/{id}/heartbeat     → poll for assigned work
-  POST /api/tasks/{id}/report         → report task status/result   (TODO(M0): confirm exact path/body)
-  POST /api/agents/message            → inter-agent messaging        (TODO(M2))
+Endpoint shapes are the verified mission-control OpenAPI 3.1 surface (M0 —
+see docs/m0-contract.md):
+  POST /api/agents/register           → register this agent, returns {agent:{id,...}}
+  GET  /api/agents/{id}/heartbeat     → poll for assigned work (work_items[])
+  PUT  /api/tasks/{id}                → report task status/result ({status, outcome, ...})
+  POST /api/agents/message            → inter-agent messaging (M3)
 
-TODO(M0): the exact request/response BODIES are still source-reading work — the
-field maps below are placeholders to be filled from mission-control's
-openapi.json during the M0 contract diff. Until then callers stay in no-op mode.
+Auth: `x-api-key` header (mission-control also accepts Authorization: Bearer).
+Task create/report needs an operator+ scoped key (src/lib/auth.ts).
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ class MissionControlClient:
         req = urllib.request.Request(url, data=data, method=method)
         req.add_header("Content-Type", "application/json")
         if self.api_key:
-            req.add_header("Authorization", f"Bearer {self.api_key}")
+            req.add_header("x-api-key", self.api_key)
         try:
             with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
                 raw = resp.read().decode() or "{}"
@@ -64,23 +64,29 @@ class MissionControlClient:
             logger.debug("talaria: mission-control %s %s failed: %s", method, path, exc)
             return None
 
-    # ── high-level (stubs — bodies filled in M0) ──────────────────────────────
+    # ── high-level (paths/bodies confirmed in M0; live round-trip = M2) ────────
     def register_agent(self, agent: dict) -> Optional[str]:
-        """POST /api/agents — register this agent, return its assigned id."""
-        # TODO(M0): map Hermes agent identity → mission-control agent schema.
-        resp = self._request("POST", "/api/agents", agent)
-        return (resp or {}).get("id")
+        """POST /api/agents/register — register this agent, return its assigned id.
+
+        Body: {name, role:"agent", capabilities:[], framework:"hermes"}.
+        Response: {agent:{id,...}, registered}.
+        """
+        resp = self._request("POST", "/api/agents/register", agent)
+        return str((resp or {}).get("agent", {}).get("id") or "") or None
 
     def heartbeat(self, agent_id: str) -> Optional[dict]:
-        """GET /api/agents/{id}/heartbeat — poll for assigned work."""
+        """GET /api/agents/{id}/heartbeat — poll for assigned work (work_items[])."""
         if not agent_id:
             return None
         return self._request("GET", f"/api/agents/{agent_id}/heartbeat")
 
-    def report_task(self, task_id: str, status: str, result: Any = None) -> bool:
-        """Report task status/result back to mission-control."""
-        # TODO(M0): confirm exact path + body against openapi.json.
-        resp = self._request("POST", f"/api/tasks/{task_id}/report", {"status": status, "result": result})
+    def report_task(self, task_id: str, status: str, **fields: Any) -> bool:
+        """PUT /api/tasks/{id} — report task status/result.
+
+        Extra fields (outcome, error_message, resolution, actual_hours) pass through.
+        """
+        body = {"status": status, **fields}
+        resp = self._request("PUT", f"/api/tasks/{task_id}", body)
         return resp is not None
 
 

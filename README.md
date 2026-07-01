@@ -9,9 +9,10 @@ fleet manager — as its orchestration brain, **without forking or modifying eit
 
 The full design rationale, verification status, and milestone plan live in [`PLAN.md`](./PLAN.md).
 
-> **Status:** scaffold (M0 contract diff pending). This repo currently ships working skeletons with
-> `TODO(M0)`/`TODO(M2)`/`TODO(M5)` seams — the mission-dispatch *translation* logic is intentionally
-> empty until the M0 contract diff is done. See [Milestones](#milestones).
+> **Status:** M0 done — the contract diff + intercept allowlist are source-verified in
+> [`docs/m0-contract.md`](./docs/m0-contract.md). Code seams are populated to match (conductor
+> routes, mission-control paths/schemas); the single-mission round-trip (M2) is written but UNTESTED
+> pending a live stack. See [Milestones](#milestones).
 
 ---
 
@@ -72,11 +73,13 @@ Talaria must never break Hermes's native behavior. The blast radius is deliberat
 
 ## Milestones
 
-- **M0 — Spike (next task):** capture hermes-workspace's mission-dispatch payloads (single /
-  decomposed / broadcast), map field-by-field to mission-control's `/api/tasks`, and enumerate the
-  `:9119` route allowlist (mission=intercept vs native=pass-through). This *is* the safety contract.
-- **M1 — Pass-through proxy:** dashboard works identically through Talaria, nothing intercepted.
-- **M2 — Mission translation:** intercept + translate single-task dispatch → mission-control.
+- **M0 — Spike ✅ done** ([`docs/m0-contract.md`](./docs/m0-contract.md)): contract diff + the
+  `:9119` allowlist. Key finding — the dashboard has no `/api/conductor/*` routes, so Talaria *serves*
+  them (translating to mission-control) rather than intercepting; everything else passes through.
+- **M1 — Pass-through proxy:** dashboard works identically through Talaria; capture the one remaining
+  unknown (the conductor capability-probe request).
+- **M2 — Mission translation:** serve `/api/conductor/missions` → mission-control `/api/tasks`
+  (written, untested); single mission round-trips to the board.
 - **M3 — Decomposition + broadcast + status round-trip:** full Conductor parity.
 - **M4 — Package as Hermes plugin + mission-control adapter PR.**
 - **M5 — OSS release:** MIT, README, compat matrix, `docker compose` demo.
