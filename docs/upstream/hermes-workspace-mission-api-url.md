@@ -44,18 +44,27 @@ Mirrors the existing `gatewayFetch` / `dashboardFetch` split in `src/server/gate
 
 No behavior change unless the operator sets the new var. No dependency changes.
 
-### Verification status
+### Verified (runtime, against a live stack)
 
-The change is a small, mechanical refactor that mirrors the existing `gatewayFetch` / `dashboardFetch`
-split, and it is a **no-op unless `HERMES_MISSION_API_URL` is set** (it falls back to
-`HERMES_DASHBOARD_URL`). The receiving end is already proven: Talaria's bridge serves the
-`/api/conductor/*` calls and round-trips missions to mission-control (create/poll/cancel), verified
-end to end against a running stack.
+Built a `hermes-workspace` image from this branch and ran it with `HERMES_MISSION_API_URL` pointed at
+a mission bridge while `HERMES_DASHBOARD_URL` pointed **straight at a real Hermes dashboard**. Result:
+the only request the bridge received was the Conductor capability probe
+`GET /api/conductor/missions`. Every other dashboard call (`/api/status`, `/`, `/api/mcp`,
+`/api/plugins/kanban/board`, …) went directly to the dashboard, bypassing the bridge.
 
-What is *not* yet done: a full `hermes-workspace` image build to exercise the patched client at
-runtime. Our build environment tripped on an unrelated pnpm `--frozen-lockfile` / approve-builds
-issue (electron/esbuild install scripts), not on this change. Maintainer CI should confirm the build;
-the diff itself is type-consistent with the surrounding code by inspection.
+For contrast, with `HERMES_MISSION_API_URL` unset (or pointed at the same place as the dashboard) the
+behavior is identical to today, since it defaults to `HERMES_DASHBOARD_URL`. So the change is a no-op
+unless you opt in, and when you opt in it cleanly peels off *only* the mission calls.
+
+The receiving end was already proven separately: the bridge serves `/api/conductor/*` and round-trips
+missions to a mission-control fleet (create/poll/cancel).
+
+> Heads-up (separate from this change): building the image from a clean clone currently fails on
+> modern pnpm because the Dockerfile's dependency-install step copies `package.json` +
+> `pnpm-lock.yaml` but **not** `pnpm-workspace.yaml`, where the `allowBuilds:` approvals live, so pnpm
+> aborts on ignored build scripts. One-line fix (also copy `pnpm-workspace.yaml`) in
+> [`hermes-workspace-dockerfile-pnpm-workspace.patch`](./hermes-workspace-dockerfile-pnpm-workspace.patch);
+> happy to send it as its own PR.
 
 ### Real-world use
 
