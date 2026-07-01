@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/cn'
 import { useAgents } from '@/lib/agents'
-import { useBoards, useBoardTasks } from '@/lib/boards'
+import { useBoards, useBoardTasks, useBoardLive } from '@/lib/boards'
 import { PRIORITIES } from '@/lib/task-const'
 
 export const Route = createFileRoute('/_app/boards/$boardId')({
@@ -24,6 +24,7 @@ function BoardPage() {
   const board = boards.find((b) => b.id === boardId)
   const { data: allTasks = [] } = useBoardTasks(board ? boardId : null)
   const { data: fleet } = useAgents()
+  useBoardLive(board ? boardId : null)
 
   const [share, setShare] = useState(false)
   const [agentsOpen, setAgentsOpen] = useState(false)
