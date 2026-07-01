@@ -10,10 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAgentsRouteImport } from './routes/api/agents'
+import { Route as AppTasksRouteImport } from './routes/_app/tasks'
+import { Route as AppSwarmRouteImport } from './routes/_app/swarm'
+import { Route as AppSkillsRouteImport } from './routes/_app/skills'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppMissionsRouteImport } from './routes/_app/missions'
+import { Route as AppMemoryRouteImport } from './routes/_app/memory'
+import { Route as AppMcpRouteImport } from './routes/_app/mcp'
+import { Route as AppInferenceRouteImport } from './routes/_app/inference'
+import { Route as AppFleetRouteImport } from './routes/_app/fleet'
+import { Route as AppCostRouteImport } from './routes/_app/cost'
+import { Route as AppAlertsRouteImport } from './routes/_app/alerts'
+import { Route as AppAgentsRouteImport } from './routes/_app/agents'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppActivityRouteImport } from './routes/_app/activity'
 import { Route as ApiConversationsIdRouteImport } from './routes/api/conversations.$id'
 import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
 import { Route as ApiAuthProvidersRouteImport } from './routes/api/auth/providers'
@@ -27,10 +42,14 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 const ApiConversationsRoute = ApiConversationsRouteImport.update({
   id: '/api/conversations',
@@ -46,6 +65,76 @@ const ApiAgentsRoute = ApiAgentsRouteImport.update({
   id: '/api/agents',
   path: '/api/agents',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppTasksRoute = AppTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSwarmRoute = AppSwarmRouteImport.update({
+  id: '/swarm',
+  path: '/swarm',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSkillsRoute = AppSkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMissionsRoute = AppMissionsRouteImport.update({
+  id: '/missions',
+  path: '/missions',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMemoryRoute = AppMemoryRouteImport.update({
+  id: '/memory',
+  path: '/memory',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMcpRoute = AppMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInferenceRoute = AppInferenceRouteImport.update({
+  id: '/inference',
+  path: '/inference',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFleetRoute = AppFleetRouteImport.update({
+  id: '/fleet',
+  path: '/fleet',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCostRoute = AppCostRouteImport.update({
+  id: '/cost',
+  path: '/cost',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAlertsRoute = AppAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgentsRoute = AppAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppActivityRoute = AppActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AppRoute,
 } as any)
 const ApiConversationsIdRoute = ApiConversationsIdRouteImport.update({
   id: '/$id',
@@ -84,8 +173,22 @@ const ApiAuthGoogleCallbackRoute = ApiAuthGoogleCallbackRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/activity': typeof AppActivityRoute
+  '/admin': typeof AppAdminRoute
+  '/agents': typeof AppAgentsRoute
+  '/alerts': typeof AppAlertsRoute
+  '/cost': typeof AppCostRoute
+  '/fleet': typeof AppFleetRoute
+  '/inference': typeof AppInferenceRoute
+  '/mcp': typeof AppMcpRoute
+  '/memory': typeof AppMemoryRoute
+  '/missions': typeof AppMissionsRoute
+  '/settings': typeof AppSettingsRoute
+  '/skills': typeof AppSkillsRoute
+  '/swarm': typeof AppSwarmRoute
+  '/tasks': typeof AppTasksRoute
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
@@ -98,11 +201,25 @@ export interface FileRoutesByFullPath {
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/activity': typeof AppActivityRoute
+  '/admin': typeof AppAdminRoute
+  '/agents': typeof AppAgentsRoute
+  '/alerts': typeof AppAlertsRoute
+  '/cost': typeof AppCostRoute
+  '/fleet': typeof AppFleetRoute
+  '/inference': typeof AppInferenceRoute
+  '/mcp': typeof AppMcpRoute
+  '/memory': typeof AppMemoryRoute
+  '/missions': typeof AppMissionsRoute
+  '/settings': typeof AppSettingsRoute
+  '/skills': typeof AppSkillsRoute
+  '/swarm': typeof AppSwarmRoute
+  '/tasks': typeof AppTasksRoute
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
+  '/': typeof AppIndexRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
@@ -113,11 +230,26 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/activity': typeof AppActivityRoute
+  '/_app/admin': typeof AppAdminRoute
+  '/_app/agents': typeof AppAgentsRoute
+  '/_app/alerts': typeof AppAlertsRoute
+  '/_app/cost': typeof AppCostRoute
+  '/_app/fleet': typeof AppFleetRoute
+  '/_app/inference': typeof AppInferenceRoute
+  '/_app/mcp': typeof AppMcpRoute
+  '/_app/memory': typeof AppMemoryRoute
+  '/_app/missions': typeof AppMissionsRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/skills': typeof AppSkillsRoute
+  '/_app/swarm': typeof AppSwarmRoute
+  '/_app/tasks': typeof AppTasksRoute
   '/api/agents': typeof ApiAgentsRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRouteWithChildren
+  '/_app/': typeof AppIndexRoute
   '/api/auth/google': typeof ApiAuthGoogleRouteWithChildren
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/password': typeof ApiAuthPasswordRoute
@@ -131,6 +263,20 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/activity'
+    | '/admin'
+    | '/agents'
+    | '/alerts'
+    | '/cost'
+    | '/fleet'
+    | '/inference'
+    | '/mcp'
+    | '/memory'
+    | '/missions'
+    | '/settings'
+    | '/skills'
+    | '/swarm'
+    | '/tasks'
     | '/api/agents'
     | '/api/chat'
     | '/api/conversations'
@@ -143,11 +289,25 @@ export interface FileRouteTypes {
     | '/api/auth/google/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/login'
+    | '/activity'
+    | '/admin'
+    | '/agents'
+    | '/alerts'
+    | '/cost'
+    | '/fleet'
+    | '/inference'
+    | '/mcp'
+    | '/memory'
+    | '/missions'
+    | '/settings'
+    | '/skills'
+    | '/swarm'
+    | '/tasks'
     | '/api/agents'
     | '/api/chat'
     | '/api/conversations'
+    | '/'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
@@ -157,11 +317,26 @@ export interface FileRouteTypes {
     | '/api/auth/google/callback'
   id:
     | '__root__'
-    | '/'
+    | '/_app'
     | '/login'
+    | '/_app/activity'
+    | '/_app/admin'
+    | '/_app/agents'
+    | '/_app/alerts'
+    | '/_app/cost'
+    | '/_app/fleet'
+    | '/_app/inference'
+    | '/_app/mcp'
+    | '/_app/memory'
+    | '/_app/missions'
+    | '/_app/settings'
+    | '/_app/skills'
+    | '/_app/swarm'
+    | '/_app/tasks'
     | '/api/agents'
     | '/api/chat'
     | '/api/conversations'
+    | '/_app/'
     | '/api/auth/google'
     | '/api/auth/logout'
     | '/api/auth/password'
@@ -172,7 +347,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiAgentsRoute: typeof ApiAgentsRoute
   ApiChatRoute: typeof ApiChatRoute
@@ -193,12 +368,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
     }
     '/api/conversations': {
       id: '/api/conversations'
@@ -220,6 +402,104 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/agents'
       preLoaderRoute: typeof ApiAgentsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/tasks': {
+      id: '/_app/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof AppTasksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/swarm': {
+      id: '/_app/swarm'
+      path: '/swarm'
+      fullPath: '/swarm'
+      preLoaderRoute: typeof AppSwarmRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/skills': {
+      id: '/_app/skills'
+      path: '/skills'
+      fullPath: '/skills'
+      preLoaderRoute: typeof AppSkillsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/missions': {
+      id: '/_app/missions'
+      path: '/missions'
+      fullPath: '/missions'
+      preLoaderRoute: typeof AppMissionsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/memory': {
+      id: '/_app/memory'
+      path: '/memory'
+      fullPath: '/memory'
+      preLoaderRoute: typeof AppMemoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/mcp': {
+      id: '/_app/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof AppMcpRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inference': {
+      id: '/_app/inference'
+      path: '/inference'
+      fullPath: '/inference'
+      preLoaderRoute: typeof AppInferenceRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fleet': {
+      id: '/_app/fleet'
+      path: '/fleet'
+      fullPath: '/fleet'
+      preLoaderRoute: typeof AppFleetRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cost': {
+      id: '/_app/cost'
+      path: '/cost'
+      fullPath: '/cost'
+      preLoaderRoute: typeof AppCostRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/alerts': {
+      id: '/_app/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AppAlertsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/agents': {
+      id: '/_app/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AppAgentsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/activity': {
+      id: '/_app/activity'
+      path: '/activity'
+      fullPath: '/activity'
+      preLoaderRoute: typeof AppActivityRouteImport
+      parentRoute: typeof AppRoute
     }
     '/api/conversations/$id': {
       id: '/api/conversations/$id'
@@ -273,6 +553,44 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppRouteChildren {
+  AppActivityRoute: typeof AppActivityRoute
+  AppAdminRoute: typeof AppAdminRoute
+  AppAgentsRoute: typeof AppAgentsRoute
+  AppAlertsRoute: typeof AppAlertsRoute
+  AppCostRoute: typeof AppCostRoute
+  AppFleetRoute: typeof AppFleetRoute
+  AppInferenceRoute: typeof AppInferenceRoute
+  AppMcpRoute: typeof AppMcpRoute
+  AppMemoryRoute: typeof AppMemoryRoute
+  AppMissionsRoute: typeof AppMissionsRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppSkillsRoute: typeof AppSkillsRoute
+  AppSwarmRoute: typeof AppSwarmRoute
+  AppTasksRoute: typeof AppTasksRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppActivityRoute: AppActivityRoute,
+  AppAdminRoute: AppAdminRoute,
+  AppAgentsRoute: AppAgentsRoute,
+  AppAlertsRoute: AppAlertsRoute,
+  AppCostRoute: AppCostRoute,
+  AppFleetRoute: AppFleetRoute,
+  AppInferenceRoute: AppInferenceRoute,
+  AppMcpRoute: AppMcpRoute,
+  AppMemoryRoute: AppMemoryRoute,
+  AppMissionsRoute: AppMissionsRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppSkillsRoute: AppSkillsRoute,
+  AppSwarmRoute: AppSwarmRoute,
+  AppTasksRoute: AppTasksRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 interface ApiConversationsRouteChildren {
   ApiConversationsIdRoute: typeof ApiConversationsIdRoute
 }
@@ -297,7 +615,7 @@ const ApiAuthGoogleRouteWithChildren = ApiAuthGoogleRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiAgentsRoute: ApiAgentsRoute,
   ApiChatRoute: ApiChatRoute,
