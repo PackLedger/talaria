@@ -75,12 +75,13 @@ const RichEditorInner = forwardRef<RichEditorHandle, RichEditorProps>(function R
   )
 })
 
-// Memoized: a parent re-render (e.g. typing in a sibling title/tag input) must
-// NOT re-render a mounted editor — that would steal focus. Content changes come
-// through a new `key` (remount), so ignoring onSave identity is safe here.
+// Memoized: once mounted, a parent re-render must NEVER re-render the editor —
+// that steals focus. `value` is intentionally ignored (it's init-only; to load
+// new content, remount via `key`), because it changes on every save (markdown
+// re-serializes) and would otherwise re-render the editor and grab focus.
 export const RichEditor = memo(
   RichEditorInner,
-  (a, b) => a.value === b.value && a.editable === b.editable && a.placeholder === b.placeholder && a.minHeight === b.minHeight,
+  (a, b) => a.editable === b.editable && a.placeholder === b.placeholder && a.minHeight === b.minHeight,
 )
 
 function Toolbar({ editor }: { editor: Editor | null }) {
