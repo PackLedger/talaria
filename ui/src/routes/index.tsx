@@ -51,10 +51,14 @@ function Cockpit() {
     setSelectedAgent(c.agentModel)
     setSelectedConversationId(c.id)
   }
-  const newChat = (agentModel: string) => {
+  // Switching agent (or "New chat") starts a fresh thread with that agent.
+  const selectAgent = (agentModel: string) => {
     setSelectedAgent(agentModel)
     setSelectedConversationId(null)
     setNewChatSignal((n) => n + 1)
+  }
+  const newChat = () => {
+    if (selectedAgent) selectAgent(selectedAgent)
   }
   const onCreated = (id: string) => {
     setSelectedConversationId(id)
@@ -85,14 +89,7 @@ function Cockpit() {
         </header>
 
         <div className="flex min-h-0 flex-1">
-          <ConversationSidebar
-            agents={agents}
-            conversations={conversations}
-            selectedConversationId={selectedConversationId}
-            selectedAgent={selectedAgent}
-            onSelect={selectConversation}
-            onNewChat={newChat}
-          />
+          {/* Left rail reserved for the main app menu (coming later). */}
 
           <main className="min-h-0 flex-1">
             {selectedAgent && current ? (
@@ -110,6 +107,17 @@ function Cockpit() {
               </div>
             )}
           </main>
+
+          <ConversationSidebar
+            agents={agents}
+            conversations={conversations}
+            selectedAgent={selectedAgent}
+            selectedConversationId={selectedConversationId}
+            agentsLoading={agentsLoading}
+            onSelectAgent={selectAgent}
+            onSelectConversation={selectConversation}
+            onNewChat={newChat}
+          />
         </div>
       </div>
     </>
