@@ -26,9 +26,12 @@ Same two-plane brain underneath, one login, one design language, one release.
 
 1. **Not a fork.** Forking both upstreams is a maintenance trap. Instead, build our own shell and **pull
    in the components we need** from each (both are MIT, so we can lift freely) and drop the rest.
-2. **The Phase 1 bridge becomes the internal API.** The gateway plane (`/v1/models`, model-routed chat,
-   merged sessions) and mission-control's REST are the backends. The new UI is a client of Talaria, not a
-   proxy in front of two apps.
+2. **Talaria owns the brain — don't proxy mission-control.** The gateway plane (`/v1/models`,
+   model-routed chat, merged sessions) is Talaria's own runtime. The ops functionality (agent registry,
+   heartbeat, task queue, cost/token ledger, activities, alerts) is **ripped from mission-control into
+   Talaria's own stack** (Postgres/Redis) rather than proxied from a running MC — no upstream service
+   dependency, no upstream to track. Agents report to **Talaria**, not MC. (Revised 2026-07-01: MC is a
+   lift source, not a backend.)
 3. **Two views, one app.** A single frontend with a mode toggle (or role-gated: normies land on simple,
    maintainers can flip to advanced). Not two separate apps.
 4. **Incremental.** Ship the simple view first (chat + agent switcher), then layer the advanced view. Each
@@ -41,20 +44,22 @@ Same two-plane brain underneath, one login, one design language, one release.
                  Talaria UI  (our app, one identity)
         ┌──────────────────────────────────────────────┐
         │  simple view (normies) │ advanced view (ops)  │
-        └───────────┬───────────────────────┬──────────┘
-                    │ chat / agents / sessions│ fleet / tasks / cost / telemetry
-                    ▼                         ▼
-        Talaria gateway plane          mission-control REST
-        (/v1/models, model-routed      (agents, tasks, tokens/by-agent,
-         chat, merged sessions)         activities, alerts, workspaces/RBAC)
-                    │                         ▲
-                    ▼                         │ register / heartbeat / report
-              the agent fleet ───────────────┘ (Talaria plugin)
+        └───────────────────────┬──────────────────────┘
+                                │ everything via Talaria's own BFF
+                                ▼
+                 Talaria server (our brain)
+        ┌──────────────────────────────────────────────┐
+        │ gateway plane        │  owned ops core         │
+        │ (/v1/models, chat,   │  (agents, tasks, cost,  │
+        │  merged sessions)    │  activities — Postgres) │
+        └──────────┬───────────┴───────────┬────────────┘
+                   ▼                        ▲
+             the agent fleet ──────────────┘ register / heartbeat / report → Talaria
 ```
 
-The UI talks to two backends: the gateway plane for the chat/agent experience, and mission-control's REST
-for the ops data. Talaria may add a thin BFF (backend-for-frontend) layer if it's cleaner than the UI
-hitting both directly (open question below).
+The UI talks to **one backend: Talaria's own BFF**. Chat/agents ride the gateway plane; ops data is
+served from Talaria's own Postgres (usage today; a full ripped-in registry/task-queue/ledger as it
+lands). mission-control is a **component-lift source**, not a runtime dependency.
 
 ## Tech
 
