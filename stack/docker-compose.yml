@@ -66,7 +66,8 @@ services:
       # OPENCLAW_GATEWAY_PORT: "18789"
     volumes:
       - mission-control-data:/app/.data # SQLite mission-control.db + generated secrets
-    networks: [default, edge]
+    # ai_default → the live fleet agents can register/heartbeat/report to the brain.
+    networks: [default, edge, ai_default]
     ports:
       - "127.0.0.1:8700:3000" # internal listen port is 3000 (M0-confirmed)
 
