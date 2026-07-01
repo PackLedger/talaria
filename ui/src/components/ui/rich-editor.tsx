@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { forwardRef, memo, useEffect, useImperativeHandle } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
@@ -19,24 +19,28 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
+export interface RichEditorHandle {
+  getMarkdown: () => string
+  clear: () => void
+}
+
 // WYSIWYG editor for normies; markdown under the hood (agents write/read markdown
-// via the API). SSR-safe (immediatelyRender: false). Uncontrolled after mount —
-// remount via a `key` to load new content.
-export function RichEditor({
-  value,
-  onChange,
-  onBlur,
-  editable = true,
-  placeholder,
-  minHeight = '5rem',
-}: {
+// via the API). SSR-safe. Crucially it does NOT lift state on every keystroke —
+// read the value via the ref (on send) or `onSave` (on blur). This keeps the
+// parent from re-rendering per keypress, which would make sibling editors fight
+// for focus.
+interface RichEditorProps {
   value: string
-  onChange?: (markdown: string) => void
-  onBlur?: () => void
+  onSave?: (markdown: string) => void
   editable?: boolean
   placeholder?: string
   minHeight?: string
-}) {
+}
+
+const RichEditorInner = forwardRef<RichEditorHandle, RichEditorProps>(function RichEditor(
+  { value, onSave, editable = true, placeholder, minHeight = '5rem' },
+  ref,
+) {
   const editor = useEditor({
     immediatelyRender: false,
     editable,
@@ -47,9 +51,17 @@ export function RichEditor({
       Markdown.configure({ html: false, breaks: true, transformPastedText: true }),
     ],
     content: value,
-    onUpdate: ({ editor }) => onChange?.(editor.storage.markdown.getMarkdown()),
-    onBlur: () => onBlur?.(),
+    onBlur: ({ editor }) => onSave?.(editor.storage.markdown.getMarkdown()),
   })
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getMarkdown: () => editor?.storage.markdown.getMarkdown() ?? '',
+      clear: () => editor?.commands.clearContent(),
+    }),
+    [editor],
+  )
 
   useEffect(() => {
     editor?.setEditable(editable)
@@ -61,7 +73,15 @@ export function RichEditor({
       <EditorContent editor={editor} className="tiptap px-3 py-2 text-sm" style={{ minHeight }} />
     </div>
   )
-}
+})
+
+// Memoized: a parent re-render (e.g. typing in a sibling title/tag input) must
+// NOT re-render a mounted editor — that would steal focus. Content changes come
+// through a new `key` (remount), so ignoring onSave identity is safe here.
+export const RichEditor = memo(
+  RichEditorInner,
+  (a, b) => a.value === b.value && a.editable === b.editable && a.placeholder === b.placeholder && a.minHeight === b.minHeight,
+)
 
 function Toolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null
@@ -70,6 +90,7 @@ function Toolbar({ editor }: { editor: Editor | null }) {
     <button
       type="button"
       title={title}
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={cn('grid h-7 w-7 place-items-center rounded transition-colors', active ? 'bg-card2 text-accent' : 'text-muted hover:bg-card hover:text-fg')}
     >
