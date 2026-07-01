@@ -52,10 +52,13 @@ hitting both directly (open question below).
 
 ## Tech
 
-- **Framework:** React + TypeScript (both upstreams are React, which makes component lifting realistic).
-  Pick one shell: Next.js (matches mission-control, good for the ops/data views) or Vite + TanStack
-  (matches hermes-workspace, good for the chat/streaming UX). Decide based on which half is heavier to
-  port; leaning Next.js since the ops surface is larger and MC is already Next.
+- **Framework: Vite + TanStack (Start / Router). DECIDED.** React + TypeScript. This matches
+  hermes-workspace, so the harder-to-port half (streaming chat, the agent/model switcher, the session
+  sidebar, the conductor UI) lifts with minimal friction, and Vite gives fast dev. The trade: mission-
+  control's ops/data views are Next.js and get ported into TanStack (data fetching + routing) rather than
+  lifted as-is. That's the cheaper direction overall, since data-fetching/table/board views port more
+  easily than live streaming chat. Practically: TanStack Start for the app + server routes (same shape as
+  hermes-workspace's own API routes), TanStack Query for data, TanStack Router for the shell.
 - **Design system:** one component library + tokens for both views (so simple/advanced feel like one
   product). Adopt whichever upstream's styling is closer, or a neutral base (e.g. shadcn/Tailwind).
 - **Auth/SSO:** reuse the existing Cloudflare Access / Google SSO gate; role drives which view a user sees.
@@ -111,10 +114,11 @@ Early task: a **component inventory** pass to mark each as lift-as-is / adapt / 
 - **BFF or direct?** Does the UI hit the gateway plane + MC REST directly, or does Talaria add a
   backend-for-frontend that unifies them (auth, shaping, one origin)? Leaning BFF for a clean single-origin
   app, but it's more to build.
-- **Framework:** Next.js vs Vite/TanStack (see Tech). One decision that shapes how easily each half's
-  components port.
+- ~~Framework~~ **Decided: Vite + TanStack** (see Tech). Implication for P2.0: mission-control's ops views
+  are the ones needing a port (Next → TanStack), so weight the component inventory toward them.
 - **How much to lift vs rebuild.** Lifting keeps parity fast but inherits upstream quirks; rebuilding is
-  cleaner but slower. Decide per component in P2.0.
+  cleaner but slower. Decide per component in P2.0. (hermes-workspace components lift; mission-control
+  views mostly rebuild-in-TanStack.)
 - **Where the simple ↔ advanced toggle lives**, and whether it's user-choice or purely role-gated.
 - **Design system / branding** for Talaria as a product.
 
