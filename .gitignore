@@ -1,0 +1,17 @@
+# Node / bridge
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Python plugin
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+*.swp

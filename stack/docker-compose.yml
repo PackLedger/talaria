@@ -1,0 +1,87 @@
+# Talaria docker stack — hermes-workspace (UI) + mission-control (brain) + talaria-bridge (seam).
+#
+# Standalone compose (like ai/orchestration, ai/inference). It joins the shared
+# external `edge` network created by the root packledger-services compose, so:
+#   • cloudflared can serve the workspace at workspace.packledger.co, and
+#   • the bridge/workspace can reach the LIVE fleet by service name
+#     (kanban-dashboard:9119, agent-developer:8642) — those services attach edge too.
+#
+# Bring up:  docker compose -f talaria/stack/docker-compose.yml --env-file talaria/stack/.env up -d
+# Validate:  docker compose -f talaria/stack/docker-compose.yml config
+name: talaria
+
+services:
+  # ── The seam: transparent proxy of the Hermes dashboard, mission interceptor ──
+  talaria-bridge:
+    build:
+      context: ../bridge
+    image: packledger/talaria-bridge:0.1.0
+    restart: unless-stopped
+    environment:
+      TALARIA_PORT: "9119"
+      # The REAL Hermes dashboard on the live fleet (ai/orchestration kanban-dashboard).
+      TALARIA_DASHBOARD_UPSTREAM: ${TALARIA_DASHBOARD_UPSTREAM:-http://kanban-dashboard:9119}
+      MISSION_CONTROL_URL: ${MISSION_CONTROL_URL:-http://mission-control:3000}
+      MISSION_CONTROL_API_KEY_FILE: /run/secrets/talaria_mc_key
+    secrets:
+      - talaria_mc_key
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9119/__talaria/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks: [default, edge]
+    ports:
+      - "127.0.0.1:9119:9119" # local debug only; public path is via the tunnel
+
+  # ── The brain: agent-agnostic fleet manager (task queue + cost ledger owner) ──
+  mission-control:
+    # TODO(M5): pin a real image/tag + compat matrix. builderz-labs/mission-control
+    # may require building from source (add a build: context once vendored in M0/M5).
+    image: ${MISSION_CONTROL_IMAGE:-ghcr.io/builderz-labs/mission-control:latest}
+    restart: unless-stopped
+    environment:
+      # TODO(M0): confirm env keys + internal port against mission-control docs.
+      MISSION_CONTROL_API_KEY_FILE: /run/secrets/talaria_mc_key
+    secrets:
+      - talaria_mc_key
+    volumes:
+      - mission-control-data:/data # SQLite: durable task queue + cost ledger
+    networks: [default, edge]
+    ports:
+      - "127.0.0.1:8700:3000" # TODO(M0): confirm mission-control's internal port
+
+  # ── The UI: Hermes-native workspace. Config-only integration (one env var). ──
+  hermes-workspace:
+    # TODO(M5): pin a real image/tag. outsourc-e/hermes-workspace may require
+    # building from source (add a build: context once vendored in M0/M5).
+    image: ${HERMES_WORKSPACE_IMAGE:-ghcr.io/outsourc-e/hermes-workspace:latest}
+    restart: unless-stopped
+    depends_on:
+      - talaria-bridge
+    environment:
+      # THE LINCHPIN: point the dashboard mission API at Talaria (config-only).
+      HERMES_DASHBOARD_URL: ${HERMES_DASHBOARD_URL:-http://talaria-bridge:9119}
+      # Chat/streaming + gateway go STRAIGHT to a real agent — never via Talaria.
+      # TODO(M0/M2): decide which gateway (single agent vs identity-proxy router).
+      HERMES_API_URL: ${HERMES_API_URL:-http://agent-developer:8642}
+    networks: [default, edge]
+    ports:
+      - "127.0.0.1:8711:3000" # TODO(M5): confirm hermes-workspace's internal port
+
+secrets:
+  # Shared mission-control API key. Sourced from the MISSION_CONTROL_API_KEY env
+  # (mirrors ai/orchestration's secrets convention); delivered as a file, not env.
+  talaria_mc_key:
+    environment: MISSION_CONTROL_API_KEY
+
+networks:
+  default:
+  # Created by the root packledger-services compose; the tunnel + live fleet live here.
+  edge:
+    external: true
+    name: packledger-services_edge
+
+volumes:
+  mission-control-data:
