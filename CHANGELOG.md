@@ -9,6 +9,11 @@ All milestones below verified live against a running stack on 2026-07-01
 ([`scripts/verify-stack.sh`](./scripts/verify-stack.sh) — all checks pass).
 
 ### Added
+- **Gateway plane** (`bridge/src/gatewayPlane.ts`) — the fleet multiplexer. Fronts the Hermes gateway
+  `:8642` for a whole fleet: `/v1/models` = every agent, `/v1/chat/completions` routed by model to that
+  agent's real gateway (per-agent key, SSE streamed). One workspace talks to every agent via the model
+  switcher. Fleet declared in a manifest (`TALARIA_FLEET`/`TALARIA_FLEET_FILE`). Repositioned Talaria as
+  a two-plane **Hermes fleet framework** (gateway multiplexer + dashboard management bridge).
 - **Bridge** (`bridge/`, Node/TS) — transparent reverse-proxy of the Hermes dashboard `:9119`.
   - **M1** pass-through: all 164 dashboard routes (incl. OAuth + 4 websockets) proxied byte-for-byte
     to the real dashboard; conductor capability-probe (`GET /api/conductor/missions`) served as

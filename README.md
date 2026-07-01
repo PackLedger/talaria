@@ -2,18 +2,20 @@
 
 > *Talaria: the winged sandals of Hermes, the thing that carries him between worlds.*
 
-Talaria is a little bridge with a big job. It lets the slick Hermes-native UI
-[**hermes-workspace**](https://github.com/outsourc-e/hermes-workspace) use a battle-tested,
-framework-agnostic fleet manager, [**mission-control**](https://github.com/builderz-labs/mission-control),
-as its brain. Best of both worlds, and you don't fork or patch either one. You point one env var at
-Talaria and you're off.
+Talaria is a **framework for running a Hermes fleet** with two front doors to the same agents:
+[**hermes-workspace**](https://github.com/outsourc-e/hermes-workspace), the friendly cockpit for the
+people doing the work (chat with any agent, spin up a mission, watch it run), and
+[**mission-control**](https://github.com/builderz-labs/mission-control), the observable,
+enterprise-grade console for the operators running the harness (fleet health, cost governance, RBAC,
+the full task queue and telemetry). You declare your fleet once; Talaria wires both dashboards to the
+same agents so the everyday view and the ops view never drift. Pick whichever pane of glass fits the
+person in front of it.
 
-Think of it as **two front doors to the same fleet**: hermes-workspace is the friendly, approachable
-cockpit for the people actually doing the work (chat, spin up a mission, watch it run), while
-mission-control is the observable, enterprise-grade console for the operators running the harness
-(fleet health, cost governance, RBAC, the full task queue and telemetry). Talaria keeps them pointed
-at the same brain, so the everyday view and the ops view never drift. Pick whichever pane of glass
-fits the person in front of it.
+You don't fork or patch either tool. Talaria is **two planes** in front of your fleet: a **gateway
+plane** that multiplexes all your agent gateways (so one workspace can talk to every agent), and a
+**dashboard plane** that bridges the management surfaces to mission-control. Adopt it incrementally as
+a drop-in **bridge** in front of an existing setup, or run it as the **framework** that stands up and
+commands the whole fleet.
 
 (Status, milestones, and the wishlist live in [`ROADMAP.md`](./ROADMAP.md). The design rationale and
 the wire-level contract are in [`PLAN.md`](./PLAN.md) and [`docs/m0-contract.md`](./docs/m0-contract.md).)
@@ -31,43 +33,56 @@ rebuilding any of it, Talaria wires the workspace's brain into mission-control's
 part: **every node stays a full Hermes agent**, memory and skills and learning intact. We orchestrate
 smart agents, not dumb workers.
 
-## How the seam works
+## How it works: two planes in front of the fleet
+
+The workspace points its two URLs at Talaria. Talaria fans out to your whole fleet.
 
 ```
-hermes-workspace UI
-   │  Conductor → HERMES_DASHBOARD_URL  (point this at Talaria)
-   ▼
-┌─────────────────────────────────────────────┐
-│  talaria-bridge  (this repo, MIT)            │
-│  • proxies EVERY dashboard route byte-for-   │
-│    byte (sessions/skills/config/MCP/ws)      │
-│  • SERVES the /api/conductor/* routes the    │
-│    real dashboard doesn't have, translating  │
-│    them to mission-control REST              │
-└─────────────────────────────────────────────┘
-   │  everything else (pass-through)   │  conductor routes (served)
-   ▼                                   ▼
-Hermes dashboard :9119          mission-control  ──► N Hermes agents
-(the real one, untouched)       (task queue, cost, RBAC, telemetry)
-        ▲                                   ▲
-        │  chat/streaming + gateway :8642   │  register / heartbeat / report
-        │  NEVER go through Talaria         │  via the Talaria plugin on each agent
-    hermes-workspace                    each Hermes agent
+                         hermes-workspace UI
+              HERMES_API_URL │            │ HERMES_DASHBOARD_URL
+              (gateway plane) │            │ (dashboard plane)
+                              ▼            ▼
+        ┌──────────────────────────┐  ┌──────────────────────────────┐
+        │ GATEWAY PLANE  :8642      │  │ DASHBOARD PLANE  :9119        │
+        │ fleet multiplexer         │  │ management bridge             │
+        │ • /v1/models = whole fleet│  │ • serves /api/conductor/*     │
+        │ • /v1/chat routed by model│  │   + the kanban board from MC  │
+        │   → the right agent, per- │  │ • proxies everything else to  │
+        │   agent key, SSE streamed │  │   the real dashboard untouched│
+        └──────────────┬───────────┘  └───────────────┬──────────────┘
+          per-agent     │                 conductor +  │  pass-through
+          routing       ▼                 kanban        ▼
+   ┌────────┬────────┬────────┐      mission-control   Hermes dashboard :9119
+   ▼        ▼        ▼        ▼      (tasks, cost,      (the real one, untouched)
+ agent-1  agent-2  …      agent-N    RBAC, telemetry)
+ gateway  gateway         gateway         ▲
+   (each a full Hermes agent)             │ register / heartbeat / report
+                                          └── via the Talaria plugin on each agent
 ```
 
-Here's the fun bit we found while building it: the Hermes dashboard **doesn't even have**
-`/api/conductor/*` routes. It 404s them, and the workspace quietly falls back to running tmux workers
-locally. So Talaria isn't hijacking anything. It's *filling in a gap*, answering routes nobody else
-answers and passing the other ~160 straight through. That's why it's so safe (more on that below).
+The **gateway plane** exposes each agent as an OpenAI model (its `API_SERVER_MODEL_NAME`), so the
+workspace's model switcher becomes the agent switcher: pick `dex-developer` and you're talking to Dex,
+pick `sam-support` and you're talking to Sam. Each agent stays a full Hermes agent; Talaria just routes
+the request (with that agent's key) and streams the reply back.
+
+The **dashboard plane** does the management side. Fun bit we found: the Hermes dashboard **doesn't even
+have** `/api/conductor/*` routes. It 404s them and the workspace falls back to local tmux workers. So
+Talaria isn't hijacking anything there, it's *filling a gap*, answering the mission + kanban routes and
+passing the other ~160 straight through to the real dashboard.
+
+**Two ways to run it.** *Bridge mode:* drop Talaria in front of an existing Hermes + workspace, point
+one env var, nothing else changes. *Framework mode:* declare your fleet in a manifest and let Talaria
+command the topology and multiplex the whole thing. Same code, you just fill in more of the manifest.
 
 ### The pieces
 
 | Path | Piece | What it does |
 |---|---|---|
-| [`bridge/`](./bridge) | **talaria-bridge** (Node/TS) | Sits in front of the dashboard `:9119`, serves the conductor routes + the kanban board (from mission-control), proxies the rest untouched. |
-| [`plugin/talaria/`](./plugin/talaria) | **Talaria Hermes plugin** | Rides along on each agent (`plugins.enabled: [talaria]`). Registers the agent with mission-control, heartbeats for work, reports progress. One source dir, bind-mounted read-only into every agent. |
+| [`bridge/`](./bridge) | **talaria-bridge** (Node/TS) | Both planes. Gateway plane multiplexes the fleet (`/v1/models`, model-routed chat); dashboard plane serves conductor + the kanban board from MC and proxies the rest untouched. |
+| [`stack/fleet.json`](./stack/fleet.example.json) | **fleet manifest** | Declares your agents (model → gateway url + key). This is the "framework" input; Talaria routes off it. Gitignored (holds keys). |
+| [`plugin/talaria/`](./plugin/talaria) | **Talaria Hermes plugin** | Rides along on each agent (`plugins.enabled: [talaria]`). Registers with mission-control, heartbeats for work, reports progress. One source dir, mounted read-only into every agent. |
 | [`adapter/`](./adapter) | **mission-control adapter** | A `HermesAdapter` that makes Hermes a first-class framework inside mission-control. |
-| [`stack/`](./stack) | **docker stack** | Compose that wires workspace + mission-control + bridge onto the shared `edge` network. |
+| [`stack/`](./stack) | **docker stack** | Compose that wires workspace + mission-control + bridge + the fleet network together. |
 
 ### The conductor path, end to end
 
@@ -99,26 +114,34 @@ human/Aegis-gated step). This is on whenever a brain is configured; flip it off 
 `TALARIA_KANBAN_FROM_MC=0`. To get it you run in full-proxy mode (`HERMES_DASHBOARD_URL` → Talaria)
 so the kanban traffic actually passes through.
 
-**Honest limit:** the workspace's dedicated *agents-online* widget is fed by the Hermes gateway
-(`:8642`), which Talaria never touches, so that specific panel still shows gateway agents, not MC
-agents. The fleet *work* (tasks + who owns them) shows up on the board; a native MC agents-list panel
-would need an upstream addition.
+### One workspace, the whole fleet
+
+This is the point of the gateway plane. Your users open one hermes-workspace and every agent shows up
+in the model switcher; picking one routes the whole chat to that agent's real gateway (native
+streaming, that agent's memory and skills, all intact). No per-user setup, no juggling tabs, no
+workspace fork. Add or remove agents by editing the fleet manifest.
+
+**Current edges (honest):** the *chat* path is fully per-agent (routed by model). The other gateway
+calls the workspace makes for a selected agent (its own sessions list, the agents-online widget) still
+resolve against the fleet's *default* agent, since those calls don't carry the model selector yet.
+Per-agent session routing is the next step; the primary "talk to any agent" flow works today.
 
 ## The "don't break anything" promise
 
-This is the whole ballgame, so we take it seriously. Talaria's blast radius is tiny on purpose:
+Talaria routes; it never rewrites your agents. The guarantees:
 
-- It **never touches the agent runtime** (gateway `:8642`): chat, streaming, the run loop, memory,
-  skills, native subagents. The workspace's chat and `HERMES_API_URL` talk to the gateway directly,
-  nowhere near Talaria.
-- It **only sits in front of the dashboard** (`:9119`), and even there it passes everything through
-  byte-for-byte (headers, auth, SSE, websockets). The only routes it answers itself are the conductor
-  ones the dashboard didn't have anyway.
+- **Every node stays a full Hermes agent.** The gateway plane forwards chat/streaming to each agent's
+  real gateway with that agent's own key. Memory, skills, the run loop, native subagents, all intact.
+  Talaria picks *which* agent gets the request; it doesn't change how the agent answers.
+- **Dashboard plane passes through byte-for-byte** (headers, auth, SSE, websockets). The only routes it
+  answers itself are the conductor + kanban ones (and conductor is a gap the dashboard 404s anyway).
 - **Allowlist, not denylist.** Anything Talaria doesn't explicitly recognize (including routes a future
   Hermes version adds) sails straight through.
-- **One env var, fully reversible.** It's only active because `HERMES_DASHBOARD_URL` points at it.
-  Unset that and you're 100% back to native, tmux workers and all. Talaria never writes to a single
-  Hermes file.
+- **Nothing is written to your agents.** Talaria never edits a Hermes file or config. In bridge mode
+  it's fully reversible: unset the two env vars and you're 100% back to native. In framework mode you
+  add the fleet manifest, but the agents themselves are untouched.
+- **Secrets stay put.** The fleet manifest (with per-agent keys) is gitignored and mounted read-only;
+  the plugin no-ops until you give it a mission-control URL.
 
 One more: mission-control gates the final `done` on a task behind an approval step (its "Aegis" gate).
 Talaria **does not** bypass that. Agents report their work up to `quality_review` and let the humans
@@ -128,12 +151,15 @@ sign off, which happens to line up nicely with how PackLedger already runs its D
 
 ```bash
 cp stack/.env.example stack/.env          # fill in MISSION_CONTROL_API_KEY etc.
+cp stack/fleet.example.json stack/fleet.json   # declare your agents (model → gateway url + key)
 docker compose -f stack/docker-compose.yml up -d --build
 ./scripts/verify-stack.sh                 # should print ALL PASS
 ```
 
-mission-control has no published image, so it builds from source. See [`stack/README.md`](./stack/README.md)
-for the network prereqs and the pinned build commit.
+Then point a hermes-workspace at Talaria (`HERMES_API_URL` → the gateway plane `:8642`,
+`HERMES_DASHBOARD_URL` → the dashboard plane `:9119`) and every agent in your manifest shows up in the
+model switcher. mission-control has no published image, so it builds from source. See
+[`stack/README.md`](./stack/README.md) for the network prereqs and the pinned build commit.
 
 ## License
 
