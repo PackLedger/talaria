@@ -95,11 +95,15 @@ Talaria must never break Hermes's native behavior. The blast radius is deliberat
 
 ## Compatibility matrix
 
-Both upstreams move fast; pin explicitly. **(TODO(M5): fill on first pinned release.)**
+Both upstreams move fast; pin explicitly. Verified-together set (the M1–M3 live verification,
+2026-07-01):
 
-| Talaria | hermes-workspace | mission-control | NousResearch/hermes-agent |
+| Talaria | hermes-workspace | mission-control | hermes-agent (dashboard) |
 |---|---|---|---|
-| _unreleased_ | _TBD_ | _TBD_ | _TBD_ |
+| 0.1.0 (unreleased) | v2.3.0 · `ghcr.io/outsourc-e/hermes-workspace@sha256:2d2ba9aa…` | commit `d09e608` (built locally) | v0.16.0 (release 2026.6.5) |
+
+Reproduce the verification: bring up the stack (see [`stack/`](./stack)) and run
+[`scripts/verify-stack.sh`](./scripts/verify-stack.sh).
 
 ## License
 

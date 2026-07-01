@@ -40,11 +40,11 @@ services:
   # ── The brain: agent-agnostic fleet manager (task queue + cost ledger owner) ──
   mission-control:
     # M0 finding: NO published image exists — mission-control builds locally. Vendor
-    # + build it once:  git clone https://github.com/builderz-labs/mission-control \
-    #   talaria/vendor/mission-control && docker build -t mission-control:latest \
-    #   talaria/vendor/mission-control
-    # TODO(M5): pin a commit + compat matrix; fold in upstream docker-compose.hardened.yml
-    # (read_only rootfs, cap_drop) for production.
+    # + build it once (verified pin = commit d09e608):
+    #   git clone https://github.com/builderz-labs/mission-control talaria/vendor/mission-control
+    #   git -C talaria/vendor/mission-control checkout d09e608
+    #   docker build -t mission-control:latest talaria/vendor/mission-control
+    # TODO(M5): fold in upstream docker-compose.hardened.yml (read_only rootfs, cap_drop) for prod.
     image: ${MISSION_CONTROL_IMAGE:-mission-control:latest}
     restart: unless-stopped
     environment:
