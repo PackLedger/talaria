@@ -14,9 +14,6 @@ export const Route = createFileRoute('/api/auth/google')({
         if (!cfg.google.enabled) {
           return json({ error: 'Google login is disabled' }, { status: 400 })
         }
-        if (!cfg.secret) {
-          return json({ error: 'Server auth is not configured (AUTH_SECRET)' }, { status: 500 })
-        }
 
         const state = randomToken()
         const url = googleAuthUrl(googleRedirectUri(request), state)

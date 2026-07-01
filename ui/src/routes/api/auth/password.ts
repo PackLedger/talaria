@@ -3,7 +3,8 @@ import { json } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getAuthConfig, isEmailAllowed } from '@/server/auth/config'
 import { verifyPasswordLogin } from '@/server/auth/password'
-import { createSessionToken, sessionCookie } from '@/server/auth/session'
+import { createSession, sessionCookie } from '@/server/auth/session'
+import { upsertUser } from '@/server/users'
 
 const Body = z.object({
   username: z.string().min(1).max(200),
@@ -33,9 +34,6 @@ export const Route = createFileRoute('/api/auth/password')({
         if (!cfg.password.enabled) {
           return json({ ok: false, error: 'Password login is disabled' }, { status: 400 })
         }
-        if (!cfg.secret) {
-          return json({ ok: false, error: 'Server auth is not configured (AUTH_SECRET)' }, { status: 500 })
-        }
 
         const ip =
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
@@ -48,15 +46,16 @@ export const Route = createFileRoute('/api/auth/password')({
           return json({ ok: false, error: 'Invalid request' }, { status: 400 })
         }
 
-        const user = verifyPasswordLogin(parsed.data.username, parsed.data.password)
-        if (!user || !isEmailAllowed(user.email, cfg)) {
+        const identity = verifyPasswordLogin(parsed.data.username, parsed.data.password)
+        if (!identity || !isEmailAllowed(identity.email, cfg)) {
           // Slow the failure path a touch to blunt brute force.
           await new Promise((r) => setTimeout(r, 400))
           return json({ ok: false, error: 'Invalid credentials' }, { status: 401 })
         }
 
-        const token = createSessionToken(user, cfg.secret)
-        return json({ ok: true, user }, { headers: { 'Set-Cookie': sessionCookie(token) } })
+        const user = await upsertUser(identity)
+        const sid = await createSession({ ...user, provider: identity.provider })
+        return json({ ok: true, user }, { headers: { 'Set-Cookie': sessionCookie(sid) } })
       },
     },
   },

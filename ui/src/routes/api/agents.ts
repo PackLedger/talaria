@@ -2,15 +2,21 @@ import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
 import { listAgents } from '@/server/gateway'
 import { getSessionUser } from '@/server/auth/session'
+import { allowedAgents, canUseAgent } from '@/server/users'
 
-// GET /api/agents → the fleet (from the gateway plane's /v1/models). Auth-gated.
+// GET /api/agents → the fleet the current user may use (gateway /v1/models,
+// filtered by their per-agent access). Auth-gated.
 export const Route = createFileRoute('/api/agents')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        if (!getSessionUser(request)) return json({ error: 'unauthorized' }, { status: 401 })
+        const user = await getSessionUser(request)
+        if (!user) return json({ error: 'unauthorized' }, { status: 401 })
+
         const { agents, source } = await listAgents()
-        return json({ agents, source })
+        const access = await allowedAgents(user.id, user.role)
+        const visible = agents.filter((a) => canUseAgent(access, a.id))
+        return json({ agents: visible, source })
       },
     },
   },
