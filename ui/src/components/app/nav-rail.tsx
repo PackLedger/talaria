@@ -1,16 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { WingMark } from '@/components/brand'
-import { Modal } from '@/components/ui/modal'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
 import { TeamsModal } from '@/components/board/teams-modal'
+import { CreateBoardModal } from '@/components/board/create-board-modal'
 import { cn } from '@/lib/cn'
 import { NAV } from '@/lib/nav'
-import { createBoard, useBoards, type Board } from '@/lib/boards'
-import { useTeams } from '@/lib/teams'
+import { useBoards, type Board } from '@/lib/boards'
 import type { SessionUser } from '@/lib/session'
 
 // The main application menu. The Boards item expands to the user's boards
@@ -66,7 +61,6 @@ export function NavRail({ user }: { user: SessionUser }) {
 function BoardsSublist({ activePath, onNew, onTeams }: { activePath: string; onNew: () => void; onTeams: () => void }) {
   const { data: boards = [] } = useBoards()
 
-  // Group by team (personal boards first).
   const groups = new Map<string, Board[]>()
   for (const b of boards) {
     const key = b.teamName ?? 'Personal'
@@ -103,56 +97,5 @@ function BoardsSublist({ activePath, onNew, onTeams }: { activePath: string; onN
         <button onClick={onTeams} className="w-full rounded-md px-2 py-1 text-left text-xs text-muted transition-colors hover:text-accent">Manage teams</button>
       </div>
     </div>
-  )
-}
-
-function CreateBoardModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const qc = useQueryClient()
-  const navigate = useNavigate()
-  const { data: teams = [] } = useTeams()
-  const [name, setName] = useState('')
-  const [teamId, setTeamId] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const create = async () => {
-    const n = name.trim()
-    if (!n) return
-    setBusy(true)
-    try {
-      const { board } = await createBoard(n, teamId || null)
-      setName('')
-      await qc.invalidateQueries({ queryKey: ['boards'] })
-      onClose()
-      void navigate({ to: '/boards/$boardId', params: { boardId: board.id } })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="New board"
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" onClick={() => void create()} disabled={busy || !name.trim()}>Create board</Button>
-        </div>
-      }
-    >
-      <div className="space-y-3">
-        <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && create()} placeholder="e.g. Q3 Launch" className="w-full" />
-        <label className="block">
-          <span className="mb-1 block text-xs uppercase tracking-wide text-muted">Owner</span>
-          <Select value={teamId} onChange={(e) => setTeamId(e.target.value)} className="h-9 w-full">
-            <option value="">Personal</option>
-            {teams.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </Select>
-        </label>
-      </div>
-    </Modal>
   )
 }
