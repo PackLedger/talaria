@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite dev --port 5273",
     "build": "vite build",
-    "start": "node .output/server/index.mjs",
+    "start": "node server-entry.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

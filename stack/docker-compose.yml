@@ -95,6 +95,79 @@ services:
     ports:
       - "127.0.0.1:8711:3000" # internal listen port is 3000 (M0-confirmed)
 
+  # ── Talaria's own UI (Phase 2): durable per-user chat over the fleet ──────────
+  talaria-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: talaria
+      POSTGRES_DB: talaria
+      POSTGRES_PASSWORD: ${TALARIA_DB_PASSWORD:?set TALARIA_DB_PASSWORD in stack/.env}
+    volumes:
+      - talaria-postgres-data:/var/lib/postgresql/data
+    networks: [default]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talaria -d talaria"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  talaria-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    volumes:
+      - talaria-redis-data:/data
+    networks: [default]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  talaria-ui:
+    build:
+      context: ../ui
+    image: packledger/talaria-ui:0.1.0
+    restart: unless-stopped
+    depends_on:
+      talaria-postgres:
+        condition: service_healthy
+      talaria-redis:
+        condition: service_healthy
+      talaria-bridge:
+        condition: service_started
+    environment:
+      PORT: "3000"
+      HOST: 0.0.0.0
+      NODE_ENV: production
+      # State
+      DATABASE_URL: postgres://talaria:${TALARIA_DB_PASSWORD}@talaria-postgres:5432/talaria
+      REDIS_URL: redis://talaria-redis:6379
+      # The fleet multiplexer (gateway plane) — same host the workspace uses.
+      TALARIA_GATEWAY_URL: ${TALARIA_GATEWAY_URL:-http://talaria-bridge:8642}
+      # Auth (see stack/.env.example). Behind the CF/HTTPS tunnel COOKIE_SECURE=true.
+      AUTH_ADMIN_EMAILS: ${AUTH_ADMIN_EMAILS:-}
+      AUTH_ALLOWED_DOMAINS: ${AUTH_ALLOWED_DOMAINS:-}
+      AUTH_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:-}
+      AUTH_PUBLIC_URL: ${AUTH_PUBLIC_URL:-}
+      AUTH_GOOGLE_ENABLED: ${AUTH_GOOGLE_ENABLED:-0}
+      AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
+      AUTH_GOOGLE_CLIENT_SECRET: ${AUTH_GOOGLE_CLIENT_SECRET:-}
+      AUTH_GOOGLE_HD: ${AUTH_GOOGLE_HD:-}
+      AUTH_PASSWORD_ENABLED: ${AUTH_PASSWORD_ENABLED:-0}
+      AUTH_USERS: ${AUTH_USERS:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    networks: [default, edge]
+    ports:
+      - "127.0.0.1:5273:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/auth/providers').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 secrets:
   # Shared mission-control API key. Sourced from the MISSION_CONTROL_API_KEY env
   # (mirrors ai/orchestration's secrets convention); delivered as a file, not env.
@@ -114,3 +187,5 @@ networks:
 
 volumes:
   mission-control-data:
+  talaria-postgres-data:
+  talaria-redis-data:

@@ -64,7 +64,11 @@ export function parseCookies(request: Request): Record<string, string> {
 }
 
 function cookieString(name: string, value: string, maxAge: number): string {
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
+  // Secure by default in production, unless COOKIE_SECURE opts out (browsers drop
+  // Secure cookies over plain http://, which breaks login on LAN deployments).
+  const override = (process.env.COOKIE_SECURE ?? '').trim().toLowerCase()
+  const insecure = override === '0' || override === 'false' || override === 'no'
+  const secure = !insecure && process.env.NODE_ENV === 'production' ? '; Secure' : ''
   return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`
 }
 
