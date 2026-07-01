@@ -127,6 +127,34 @@ const MIGRATIONS: string[] = [
      created_at timestamptz not null default now()
    )`,
   `create index if not exists task_activity_task_idx on task_activity(task_id, created_at desc)`,
+  // Ticket refs (BOARD-12): a per-board prefix + monotonic counter.
+  `alter table boards add column if not exists ticket_prefix text`,
+  `alter table boards add column if not exists ticket_seq integer not null default 0`,
+  // Richer task fields (ripped from mission-control): ticket no, effort, the
+  // agent's structured result (outcome/resolution/error), completion time.
+  `alter table tasks add column if not exists ticket_no integer`,
+  `alter table tasks add column if not exists estimated_hours numeric`,
+  `alter table tasks add column if not exists actual_hours numeric`,
+  `alter table tasks add column if not exists outcome text`,
+  `alter table tasks add column if not exists resolution text`,
+  `alter table tasks add column if not exists error_message text`,
+  `alter table tasks add column if not exists completed_at timestamptz`,
+  // Watchers — users/agents following a task for updates.
+  `create table if not exists task_watchers (
+     task_id uuid not null references tasks(id) on delete cascade,
+     watcher text not null,
+     created_at timestamptz not null default now(),
+     primary key (task_id, watcher)
+   )`,
+  // Quality review / approval gate (agent → quality_review → human approves → done).
+  `create table if not exists quality_reviews (
+     id uuid primary key default gen_random_uuid(),
+     task_id uuid not null references tasks(id) on delete cascade,
+     reviewer text not null,
+     status text not null,
+     notes text,
+     created_at timestamptz not null default now()
+   )`,
 ]
 
 function ensureMigrated(): Promise<void> {

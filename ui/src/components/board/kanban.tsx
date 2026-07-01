@@ -64,6 +64,7 @@ function Card({ task, assignee, onOpen }: { task: Task; assignee: string | null;
       <div className="flex items-start gap-2">
         <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: PRIORITY_COLOR[task.priority] }} />
         <div className="min-w-0 flex-1">
+          {task.ticketRef && <div className="font-[var(--font-mono)] text-[10px] text-muted">{task.ticketRef}</div>}
           <div className="text-sm text-fg">{task.title}</div>
           {task.description && <div className="mt-0.5 line-clamp-2 text-xs text-muted">{task.description}</div>}
         </div>

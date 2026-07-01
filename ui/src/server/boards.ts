@@ -42,11 +42,23 @@ export async function boardRole(userId: string, boardId: string): Promise<BoardR
 
 export const canEdit = (role: BoardRole | null) => role === 'owner' || role === 'editor'
 
+/** A short uppercase ticket prefix from the board name (e.g. "Sprint Board" → "SB"). */
+function ticketPrefix(name: string): string {
+  const initials = name
+    .split(/[^a-zA-Z0-9]+/)
+    .filter(Boolean)
+    .map((w) => w[0]!)
+    .join('')
+    .toUpperCase()
+    .slice(0, 4)
+  return initials.length >= 2 ? initials : (name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'TASK')
+}
+
 /** Create a board and make the creator its owner. */
 export async function createBoard(userId: string, name: string): Promise<Board> {
   const sql = await db()
   const board = await sql.begin(async (tx) => {
-    const rows = await tx`insert into boards (name, owner_id) values (${name}, ${userId}) returning id, name, owner_id as "ownerId", created_at as "createdAt", updated_at as "updatedAt"`
+    const rows = await tx`insert into boards (name, owner_id, ticket_prefix) values (${name}, ${userId}, ${ticketPrefix(name)}) returning id, name, owner_id as "ownerId", created_at as "createdAt", updated_at as "updatedAt"`
     const b = rows[0] as Omit<Board, 'role'>
     await tx`insert into board_members (board_id, user_id, role) values (${b.id}, ${userId}, 'owner')`
     return b
