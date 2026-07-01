@@ -26,9 +26,8 @@ export function WingMark({ className }: { className?: string }) {
     <svg viewBox="0 0 32 32" className={className} fill="none" aria-hidden>
       <defs>
         <linearGradient id="mercuryWing" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#a855f7" />
-          <stop offset="0.55" stopColor="#c026d3" />
-          <stop offset="1" stopColor="#ee00ff" />
+          <stop stopColor="#b98f5a" />
+          <stop offset="1" stopColor="#d0aa76" />
         </linearGradient>
       </defs>
       {/* sandal sole */}

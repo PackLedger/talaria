@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { applyTheme, getStoredTheme, toggleVariant, type ThemeId } from '@/lib/theme'
 
-// Dark/light switch for the two Mercury modes.
+// Dark/light switch for the two Mercury modes. Reuses the Button primitive.
 export function ThemeToggle() {
   const [theme, setTheme] = useState<ThemeId>('mercury')
 
@@ -17,14 +18,15 @@ export function ThemeToggle() {
 
   const isDark = theme === 'mercury'
   return (
-    <button
-      type="button"
+    <Button
+      variant="outline"
+      size="sm"
       onClick={flip}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       title={isDark ? 'Mercury Light' : 'Mercury'}
-      className="theme-card theme-border grid h-9 w-9 place-items-center rounded-lg border text-base transition-colors hover:border-[var(--theme-accent-border)]"
+      className="w-9 px-0 text-base"
     >
-      <span className="theme-text">{isDark ? '☾' : '☀'}</span>
-    </button>
+      {isDark ? '☾' : '☀'}
+    </Button>
   )
 }

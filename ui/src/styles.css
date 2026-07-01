@@ -1,146 +1,174 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 /* Tailwind v4 — enable the dark: variant on the .dark class (set by __root.tsx). */
 @variant dark (&:where(.dark, .dark *));
 
 /* ════════════════════════════════════════════════════════════════════════
-   MERCURY — Talaria's signature design system.
+   MERCURY — Talaria's design system, sampled from the planet itself.
 
-   Same token *contract* as hermes-workspace's sci-fi theme (--theme-bg,
-   --theme-card, --theme-accent, chat/composer/tool tokens, …) so their chat
-   components drop in unchanged — but a distinct identity: Mercury-the-planet
-   neutrals (graphite / basalt / regolith) with a violet→magenta "mercury"
-   neon accent. Two modes: `mercury` (dark) and `mercury-light`.
+   Palette derived from MESSENGER imagery (true + enhanced colour). Mercury is
+   nearly monochrome — a warm graphite→taupe→bone ramp (saturation ~1–9%) whose
+   only real chroma is a faint warm ochre (~30°) and cool slate (~230°). So the
+   neutrals are sampled warm greys; the accent is Mercury's warmest authentic
+   tone, a muted bronze/ochre (never neon). Typeface: IBM Plex Mono, everywhere.
+
+   The `--theme-*` names match hermes-workspace's contract so its components lift
+   unchanged. Two modes: `mercury` (dark) and `mercury-light`.
    ════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Space Grotesk', 'Inter', ui-sans-serif, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-sans: var(--font-mono);
+  --font-display: var(--font-mono);
 
-  /* The mercury signature gradient (violet → magenta), reused everywhere. */
-  --mercury-grad: linear-gradient(135deg, #a855f7 0%, #c026d3 55%, #e0f 100%);
-
+  /* A subtle metallic-bronze gradient (brand mark only — not a glow). */
+  --mercury-grad: linear-gradient(135deg, #b98f5a 0%, #d0aa76 100%);
   --chat-content-max-width: 900px;
 }
 
-/* ── Mercury Dark — basalt near-black, violet→magenta neon ───────────────── */
+/* ── Mercury Dark — warm basalt/graphite, muted bronze accent ────────────── */
 [data-theme='mercury'] {
   color-scheme: dark;
 
-  --theme-bg: #08080b;
-  --theme-sidebar: #0c0c11;
-  --theme-panel: #101017;
-  --theme-card: #15151e;
-  --theme-card2: #1c1c28;
-  --theme-border: #2a2a3a;
-  --theme-border-subtle: #1e1e2b;
-  --theme-text: #ece9f4;
-  --theme-muted: #8c86a0;
+  --theme-bg: #141312;
+  --theme-sidebar: #1a1917;
+  --theme-panel: #1e1c1a;
+  --theme-card: #24221f;
+  --theme-card2: #2c2926;
+  --theme-border: #38342e;
+  --theme-border-subtle: #292623;
+  --theme-text: #e7e2db;
+  --theme-muted: #a49b8f;
 
-  --theme-shadow-1: 0 1px 3px rgba(168, 85, 247, 0.06);
-  --theme-shadow-2: 0 4px 18px rgba(0, 0, 0, 0.55), 0 0 1px rgba(168, 85, 247, 0.12);
-  --theme-shadow-3: 0 14px 44px rgba(0, 0, 0, 0.65), 0 0 2px rgba(192, 38, 211, 0.12);
-  --theme-glass: rgba(8, 8, 11, 0.82);
+  --theme-shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --theme-shadow-2: 0 4px 18px rgba(0, 0, 0, 0.5);
+  --theme-shadow-3: 0 14px 44px rgba(0, 0, 0, 0.6);
+  --theme-glass: rgba(20, 19, 18, 0.82);
 
-  --theme-focus: #a855f7;
-  --theme-accent: #a855f7;
-  --theme-accent-secondary: #c026d3;
-  --theme-accent-subtle: rgba(168, 85, 247, 0.10);
-  --theme-accent-border: rgba(168, 85, 247, 0.28);
-  --theme-active: #b667f9;
-  --theme-link: #c084fc;
+  --theme-focus: #b98f5a;
+  --theme-accent: #b98f5a;
+  --theme-accent-secondary: #d0aa76;
+  --theme-accent-subtle: rgba(185, 143, 90, 0.12);
+  --theme-accent-border: rgba(185, 143, 90, 0.32);
+  --theme-active: #c99f6a;
+  --theme-link: #c9a06a;
 
-  --theme-success: #34d399;
-  --theme-warning: #f5b301;
-  --theme-danger: #fb5a6a;
+  --theme-success: #86a06d;
+  --theme-warning: #d09a4a;
+  --theme-danger: #c56a5c;
 
-  --theme-glow: 0 0 18px rgba(168, 85, 247, 0.35);
+  /* No neon glow — Mercury is matte. A soft shadow only. */
+  --theme-glow: 0 2px 10px rgba(0, 0, 0, 0.45);
 
-  --theme-header-bg: #0c0c11;
-  --theme-header-border: #2a2a3a;
+  --theme-header-bg: #1a1917;
+  --theme-header-border: #38342e;
 
-  --chat-user-bg: #1a1330;
-  --chat-user-border: rgba(168, 85, 247, 0.22);
-  --chat-user-foreground: #ece9f4;
-  --chat-assistant-bg: #101017;
-  --chat-assistant-border: #1e1e2b;
-  --chat-assistant-foreground: #ece9f4;
+  --chat-user-bg: #2b2620;
+  --chat-user-border: rgba(185, 143, 90, 0.22);
+  --chat-user-foreground: #e7e2db;
+  --chat-assistant-bg: #1e1c1a;
+  --chat-assistant-border: #292623;
+  --chat-assistant-foreground: #e7e2db;
 
-  --composer-bg: #0c0c11;
-  --composer-border: #2a2a3a;
-  --composer-placeholder: #8c86a0;
+  --composer-bg: #1a1917;
+  --composer-border: #38342e;
+  --composer-placeholder: #a49b8f;
 
-  --tool-card-bg: #101017;
-  --tool-card-border: #2a2a3a;
-  --tool-card-title: #ece9f4;
-  --tool-card-muted: #8c86a0;
+  --tool-card-bg: #1e1c1a;
+  --tool-card-border: #38342e;
+  --tool-card-title: #e7e2db;
+  --tool-card-muted: #a49b8f;
 
-  --code-bg: #060609;
-  --code-border: #1e1e2b;
-  --code-foreground: #d8b4fe;
+  --code-bg: #100f0e;
+  --code-border: #292623;
+  --code-foreground: #d0aa76;
 
-  --theme-input: #0c0c11;
+  --theme-input: #1a1917;
 }
 
-/* ── Mercury Light — pale regolith grey, deep violet accent ──────────────── */
+/* ── Mercury Light — warm regolith daylight, deep bronze accent ──────────── */
 [data-theme='mercury-light'] {
   color-scheme: light;
 
-  --theme-bg: #f4f2f8;
-  --theme-sidebar: #ece9f2;
-  --theme-panel: #f0edf6;
-  --theme-card: #faf9fc;
-  --theme-card2: #e9e5f0;
-  --theme-border: #d6d1e2;
-  --theme-border-subtle: #e3dfec;
-  --theme-text: #191527;
-  --theme-muted: #6b6482;
+  --theme-bg: #e9e5df;
+  --theme-sidebar: #e1ddd5;
+  --theme-panel: #ebe7e1;
+  --theme-card: #f5f2ec;
+  --theme-card2: #ded9d0;
+  --theme-border: #cabfb1;
+  --theme-border-subtle: #d8d1c6;
+  --theme-text: #221f1b;
+  --theme-muted: #6f675b;
 
-  --theme-shadow-1: 0 1px 2px rgba(25, 21, 39, 0.06);
-  --theme-shadow-2: 0 4px 16px rgba(25, 21, 39, 0.08);
-  --theme-shadow-3: 0 14px 40px rgba(25, 21, 39, 0.12);
-  --theme-glass: rgba(244, 242, 248, 0.9);
+  --theme-shadow-1: 0 1px 2px rgba(34, 31, 27, 0.06);
+  --theme-shadow-2: 0 4px 16px rgba(34, 31, 27, 0.08);
+  --theme-shadow-3: 0 14px 40px rgba(34, 31, 27, 0.12);
+  --theme-glass: rgba(233, 229, 223, 0.9);
 
-  --theme-focus: #7c3aed;
-  --theme-accent: #7c3aed;
-  --theme-accent-secondary: #a21caf;
-  --theme-accent-subtle: rgba(124, 58, 237, 0.08);
-  --theme-accent-border: rgba(124, 58, 237, 0.22);
-  --theme-active: #6d28d9;
-  --theme-link: #7c3aed;
+  --theme-focus: #8a6a3a;
+  --theme-accent: #8a6a3a;
+  --theme-accent-secondary: #a07f4d;
+  --theme-accent-subtle: rgba(138, 106, 58, 0.1);
+  --theme-accent-border: rgba(138, 106, 58, 0.28);
+  --theme-active: #77592f;
+  --theme-link: #8a6a3a;
 
-  --theme-success: #059669;
-  --theme-warning: #b45309;
-  --theme-danger: #dc2626;
+  --theme-success: #4f7a3e;
+  --theme-warning: #a76a1e;
+  --theme-danger: #b04a3c;
 
-  --theme-glow: 0 0 16px rgba(124, 58, 237, 0.22);
+  --theme-glow: 0 2px 8px rgba(34, 31, 27, 0.12);
 
-  --theme-header-bg: #ece9f2;
-  --theme-header-border: #d6d1e2;
+  --theme-header-bg: #e1ddd5;
+  --theme-header-border: #cabfb1;
 
-  --chat-user-bg: #ece3fb;
-  --chat-user-border: rgba(124, 58, 237, 0.25);
-  --chat-user-foreground: #191527;
-  --chat-assistant-bg: #f6f4fa;
-  --chat-assistant-border: #e3dfec;
-  --chat-assistant-foreground: #191527;
+  --chat-user-bg: #ece2d1;
+  --chat-user-border: rgba(138, 106, 58, 0.25);
+  --chat-user-foreground: #221f1b;
+  --chat-assistant-bg: #f2eee7;
+  --chat-assistant-border: #d8d1c6;
+  --chat-assistant-foreground: #221f1b;
 
-  --composer-bg: #faf9fc;
-  --composer-border: #d6d1e2;
-  --composer-placeholder: #6b6482;
+  --composer-bg: #f5f2ec;
+  --composer-border: #cabfb1;
+  --composer-placeholder: #6f675b;
 
-  --tool-card-bg: #f0edf6;
-  --tool-card-border: #d6d1e2;
-  --tool-card-title: #191527;
-  --tool-card-muted: #6b6482;
+  --tool-card-bg: #ebe7e1;
+  --tool-card-border: #cabfb1;
+  --tool-card-title: #221f1b;
+  --tool-card-muted: #6f675b;
 
-  --code-bg: #ece9f2;
-  --code-border: #d6d1e2;
-  --code-foreground: #6d28d9;
+  --code-bg: #e1ddd5;
+  --code-border: #cabfb1;
+  --code-foreground: #77592f;
 
-  --theme-input: #faf9fc;
+  --theme-input: #f5f2ec;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Tailwind semantic colours — bound to the Mercury tokens so utilities like
+   `bg-surface`, `text-fg`, `border-line`, `text-accent` track the active mode
+   automatically. (Tailwind v4 @theme; var() references resolve per-element.)
+   ════════════════════════════════════════════════════════════════════════ */
+@theme inline {
+  --font-sans: var(--font-mono);
+  --font-mono: var(--font-mono);
+
+  --color-surface: var(--theme-bg);
+  --color-sidebar: var(--theme-sidebar);
+  --color-panel: var(--theme-panel);
+  --color-card: var(--theme-card);
+  --color-card2: var(--theme-card2);
+  --color-line: var(--theme-border);
+  --color-line-subtle: var(--theme-border-subtle);
+  --color-fg: var(--theme-text);
+  --color-muted: var(--theme-muted);
+  --color-accent: var(--theme-accent);
+  --color-accent-soft: var(--theme-accent-subtle);
+  --color-success: var(--theme-success);
+  --color-warning: var(--theme-warning);
+  --color-danger: var(--theme-danger);
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -149,7 +177,7 @@ body,
 #root {
   background-color: var(--theme-bg);
   color: var(--theme-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
 }
 
 body {
@@ -158,7 +186,6 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Scrollbars — thin, reveal on hover. */
 * {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
@@ -183,10 +210,7 @@ body {
   outline-offset: 2px;
 }
 
-/* ════════════════════════════════════════════════════════════════════════
-   Theme utility classes — use these in components (they read the tokens, so
-   they track the active mode automatically).
-   ════════════════════════════════════════════════════════════════════════ */
+/* ── Theme utility classes (kept for lifted hermes-workspace components) ──── */
 .theme-bg { background-color: var(--theme-bg); }
 .theme-sidebar { background-color: var(--theme-sidebar); }
 .theme-panel { background-color: var(--theme-panel); }
@@ -199,7 +223,7 @@ body {
 .theme-accent { color: var(--theme-accent); }
 .theme-accent-bg { background-color: var(--theme-accent); }
 
-/* The signature gradient — text + fills + borders. */
+/* Brand mark only — a restrained metallic bronze, not a glow. */
 .mercury-gradient { background-image: var(--mercury-grad); }
 .mercury-text {
   background-image: var(--mercury-grad);
@@ -207,9 +231,8 @@ body {
   background-clip: text;
   color: transparent;
 }
-.mercury-glow { box-shadow: var(--theme-glow); }
 
-/* A glassy panel with a whisper of the accent — the core surface treatment. */
+/* A matte, glassy panel — the core surface treatment (no coloured glow). */
 .mercury-panel {
   background-color: var(--theme-glass);
   border: 1px solid var(--theme-border);
