@@ -8,6 +8,13 @@ framework-agnostic fleet manager, [**mission-control**](https://github.com/build
 as its brain. Best of both worlds, and you don't fork or patch either one. You point one env var at
 Talaria and you're off.
 
+Think of it as **two front doors to the same fleet**: hermes-workspace is the friendly, approachable
+cockpit for the people actually doing the work (chat, spin up a mission, watch it run), while
+mission-control is the observable, enterprise-grade console for the operators running the harness
+(fleet health, cost governance, RBAC, the full task queue and telemetry). Talaria keeps them pointed
+at the same brain, so the everyday view and the ops view never drift. Pick whichever pane of glass
+fits the person in front of it.
+
 (Status, milestones, and the wishlist live in [`ROADMAP.md`](./ROADMAP.md). The design rationale and
 the wire-level contract are in [`PLAN.md`](./PLAN.md) and [`docs/m0-contract.md`](./docs/m0-contract.md).)
 

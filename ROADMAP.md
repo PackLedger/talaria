@@ -27,6 +27,26 @@ first-class framework in mission-control. M5 (the repo/release side) is done.
 - **M5 (OSS release) ✅ repo:** MIT, README, pinned compat matrix, docker stack, reproducible
   `verify-stack.sh`, [`CHANGELOG`](./CHANGELOG.md), [`CONTRIBUTING`](./CONTRIBUTING.md).
 
+## Workspace surface coverage (what shows mission-control)
+
+The goal: the friendly hermes-workspace UI for everyday users, backed by mission-control's
+enterprise-grade management for operators. What's reachable depends on where each workspace screen gets
+its data. Talaria can only re-point **dashboard-fed** surfaces (`:9119`); **gateway-fed** ones (`:8642`,
+chat/agents runtime) are deliberately untouched and would need a small upstream hook.
+
+| Workspace surface | Data source | mission-control backing |
+|---|---|---|
+| Conductor missions | dashboard `/api/conductor/*` | ✅ done (bridge) |
+| Swarm / kanban board | dashboard `/api/plugins/kanban/*` | ✅ done (bridge) |
+| Dashboard overview — cron tile | dashboard `/api/cron/jobs` | 🟡 bridge-able (MC has `/api/cron`) — not yet built |
+| Dashboard overview — status/agent tiles | dashboard `/api/status` | 🟡 bridge-able by augmenting the passthrough — not yet built |
+| Cost / tokens | MC `/api/tokens/by-agent` exists, but the workspace has no dashboard-fed cost surface to inject into | 🔵 needs upstream hook |
+| **Agents / fleet roster** | **gateway** `/api/gateway/agents` (+ interactive pause/kill/sessions) | 🔵 needs upstream PR (new dashboard-fed roster route + hide controls that don't map to MC) |
+| Chat / sessions / streaming | gateway | ⚪ stays Hermes-native by design |
+| Skills / MCP / config / memory | local + gateway | ⚪ stays Hermes-native by design |
+
+Legend: ✅ done · 🟡 bridge-only, buildable now · 🔵 needs an upstream hermes-workspace change · ⚪ out of scope by design.
+
 ## Still on the wishlist
 
 - **Decomposed and broadcast missions.** Those go through the workspace's *local* `:3000` endpoints,
