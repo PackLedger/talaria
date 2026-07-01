@@ -70,5 +70,10 @@ mc "$MC/api/tasks/$tid" | grep -q '"status":"in_progress"' \
   && pass "report moved assigned task $tid → in_progress" \
   || fail "report did not update task status"
 
+echo "== M4: Hermes is a first-class mission-control framework =="
+mc "$MC/api/frameworks" | grep -q '"hermes"' \
+  && pass "GET /api/frameworks lists hermes (HermesAdapter registered)" \
+  || fail "hermes not listed in /api/frameworks"
+
 echo
-echo "ALL PASS — Talaria M1/M2/M3 verified against the running stack."
+echo "ALL PASS — Talaria M1/M2/M3/M4 verified against the running stack."
