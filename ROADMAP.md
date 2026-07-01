@@ -58,6 +58,8 @@ Legend: ✅ done · 🟡 bridge-only, buildable now · 🔵 needs an upstream he
 
 ## Phase 2 — one product, its own identity (bookmarked)
 
+> Full plan: [`docs/PHASE2-UI-PLAN.md`](./docs/PHASE2-UI-PLAN.md).
+
 Today Talaria is the *seam* between two external UIs. The real flex is making it a **product** with its
 own UI and its own identity. Not a fork of either upstream (that's a maintenance trap), but our own
 frontend that **pulls in just the bits we need** from each (both are MIT, so we can lift components
