@@ -46,9 +46,11 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
   // Initialise editable fields ONCE per task (not on every refetch) so live
   // updates behind the modal don't reset what the user is typing.
   const loadedRef = useRef<string | null>(null)
+  const descSavedRef = useRef('')
   useEffect(() => {
     if (data?.task && loadedRef.current !== data.task.id) {
       loadedRef.current = data.task.id
+      descSavedRef.current = data.task.description ?? ''
       setTitle(data.task.title)
       setTags(data.task.tags.join(', '))
     }
@@ -117,7 +119,13 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                       value={t.description ?? ''}
                       editable={canEdit}
                       onSave={(md) => {
-                        if (canEdit && md !== (t.description ?? '')) save({ description: md || null })
+                        // Only save real changes, and refresh just the board's
+                        // cards — never refetch the open ticket (would churn).
+                        if (!canEdit || md === descSavedRef.current) return
+                        descSavedRef.current = md
+                        void updateTask(taskId, { description: md || null }).then(() =>
+                          qc.invalidateQueries({ queryKey: ['board-tasks', board.id] }),
+                        )
                       }}
                       placeholder="Add detail…"
                       minHeight="16rem"
