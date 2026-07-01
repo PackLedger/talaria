@@ -40,6 +40,7 @@ import { Route as ApiAuthPasswordRouteImport } from './routes/api/auth/password'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthGoogleRouteImport } from './routes/api/auth/google'
 import { Route as ApiAgentsRegisterRouteImport } from './routes/api/agents.register'
+import { Route as ApiTasksIdCommentsRouteImport } from './routes/api/tasks.$id.comments'
 import { Route as ApiBoardsIdTasksRouteImport } from './routes/api/boards.$id.tasks'
 import { Route as ApiBoardsIdMembersRouteImport } from './routes/api/boards.$id.members'
 import { Route as ApiAuthGoogleCallbackRouteImport } from './routes/api/auth/google.callback'
@@ -199,6 +200,11 @@ const ApiAgentsRegisterRoute = ApiAgentsRegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => ApiAgentsRoute,
 } as any)
+const ApiTasksIdCommentsRoute = ApiTasksIdCommentsRouteImport.update({
+  id: '/comments',
+  path: '/comments',
+  getParentRoute: () => ApiTasksIdRoute,
+} as any)
 const ApiBoardsIdTasksRoute = ApiBoardsIdTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -250,11 +256,12 @@ export interface FileRoutesByFullPath {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/boards/$id': typeof ApiBoardsIdRouteWithChildren
   '/api/conversations/$id': typeof ApiConversationsIdRoute
-  '/api/tasks/$id': typeof ApiTasksIdRoute
+  '/api/tasks/$id': typeof ApiTasksIdRouteWithChildren
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
+  '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -286,11 +293,12 @@ export interface FileRoutesByTo {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/boards/$id': typeof ApiBoardsIdRouteWithChildren
   '/api/conversations/$id': typeof ApiConversationsIdRoute
-  '/api/tasks/$id': typeof ApiTasksIdRoute
+  '/api/tasks/$id': typeof ApiTasksIdRouteWithChildren
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
+  '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -324,11 +332,12 @@ export interface FileRoutesById {
   '/api/auth/session': typeof ApiAuthSessionRoute
   '/api/boards/$id': typeof ApiBoardsIdRouteWithChildren
   '/api/conversations/$id': typeof ApiConversationsIdRoute
-  '/api/tasks/$id': typeof ApiTasksIdRoute
+  '/api/tasks/$id': typeof ApiTasksIdRouteWithChildren
   '/api/agents/$id/heartbeat': typeof ApiAgentsIdHeartbeatRoute
   '/api/auth/google/callback': typeof ApiAuthGoogleCallbackRoute
   '/api/boards/$id/members': typeof ApiBoardsIdMembersRoute
   '/api/boards/$id/tasks': typeof ApiBoardsIdTasksRoute
+  '/api/tasks/$id/comments': typeof ApiTasksIdCommentsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -367,6 +376,7 @@ export interface FileRouteTypes {
     | '/api/auth/google/callback'
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
+    | '/api/tasks/$id/comments'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -403,6 +413,7 @@ export interface FileRouteTypes {
     | '/api/auth/google/callback'
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
+    | '/api/tasks/$id/comments'
   id:
     | '__root__'
     | '/_app'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/api/auth/google/callback'
     | '/api/boards/$id/members'
     | '/api/boards/$id/tasks'
+    | '/api/tasks/$id/comments'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -455,7 +467,7 @@ export interface RootRouteChildren {
   ApiAuthPasswordRoute: typeof ApiAuthPasswordRoute
   ApiAuthProvidersRoute: typeof ApiAuthProvidersRoute
   ApiAuthSessionRoute: typeof ApiAuthSessionRoute
-  ApiTasksIdRoute: typeof ApiTasksIdRoute
+  ApiTasksIdRoute: typeof ApiTasksIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -677,6 +689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAgentsRegisterRouteImport
       parentRoute: typeof ApiAgentsRoute
     }
+    '/api/tasks/$id/comments': {
+      id: '/api/tasks/$id/comments'
+      path: '/comments'
+      fullPath: '/api/tasks/$id/comments'
+      preLoaderRoute: typeof ApiTasksIdCommentsRouteImport
+      parentRoute: typeof ApiTasksIdRoute
+    }
     '/api/boards/$id/tasks': {
       id: '/api/boards/$id/tasks'
       path: '/tasks'
@@ -809,6 +828,18 @@ const ApiAuthGoogleRouteWithChildren = ApiAuthGoogleRoute._addFileChildren(
   ApiAuthGoogleRouteChildren,
 )
 
+interface ApiTasksIdRouteChildren {
+  ApiTasksIdCommentsRoute: typeof ApiTasksIdCommentsRoute
+}
+
+const ApiTasksIdRouteChildren: ApiTasksIdRouteChildren = {
+  ApiTasksIdCommentsRoute: ApiTasksIdCommentsRoute,
+}
+
+const ApiTasksIdRouteWithChildren = ApiTasksIdRoute._addFileChildren(
+  ApiTasksIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
@@ -822,7 +853,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthPasswordRoute: ApiAuthPasswordRoute,
   ApiAuthProvidersRoute: ApiAuthProvidersRoute,
   ApiAuthSessionRoute: ApiAuthSessionRoute,
-  ApiTasksIdRoute: ApiTasksIdRoute,
+  ApiTasksIdRoute: ApiTasksIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
