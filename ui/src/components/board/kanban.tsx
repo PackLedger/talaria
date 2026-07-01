@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/avatar'
 import { cn } from '@/lib/cn'
 import { useAgents } from '@/lib/agents'
-import { createTask, updateTask, useBoardTasks, type Board } from '@/lib/boards'
+import { createTask, updateTask, type Board } from '@/lib/boards'
 import { PRIORITY_COLOR, STATUS_LABEL, TASK_STATUSES, type Task, type TaskStatus } from '@/lib/task-const'
 
 const COL_ACCENT: Record<string, string> = {
@@ -16,9 +16,9 @@ const COL_ACCENT: Record<string, string> = {
 }
 
 // Kanban board — polished columns, per-column add, drag-and-drop between columns.
-export function Kanban({ board, onOpen }: { board: Board; onOpen: (taskId: string) => void }) {
+// Tasks are passed in (the board page owns fetching + filtering).
+export function Kanban({ board, tasks, onOpen }: { board: Board; tasks: Task[]; onOpen: (taskId: string) => void }) {
   const qc = useQueryClient()
-  const { data: tasks = [] } = useBoardTasks(board.id)
   const { data: fleet } = useAgents()
   const agents = fleet?.agents ?? []
   const label = (id: string | null) => agents.find((a) => a.id === id)?.label ?? id
