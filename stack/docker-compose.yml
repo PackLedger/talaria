@@ -23,6 +23,8 @@ services:
       TALARIA_DASHBOARD_UPSTREAM: ${TALARIA_DASHBOARD_UPSTREAM:-http://kanban-dashboard:9119}
       MISSION_CONTROL_URL: ${MISSION_CONTROL_URL:-http://mission-control:3000}
       MISSION_CONTROL_API_KEY_FILE: /run/secrets/talaria_mc_key
+      # M1: log conductor probe/dispatch requests (set 1 to capture the capability probe).
+      TALARIA_LOG_REQUESTS: ${TALARIA_LOG_REQUESTS:-0}
     secrets:
       - talaria_mc_key
     healthcheck:

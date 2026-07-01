@@ -19,6 +19,11 @@ import { isMissionRoute, handleMission, MISSION_ROUTES } from "./intercept.js";
 const cfg = loadConfig();
 const mc = new MissionControlClient(cfg);
 
+// Verbose request logging (TALARIA_LOG_REQUESTS=1) for M1 probe capture. Conductor
+// routes are ALWAYS logged (low-volume, high-signal — this is how we learn the exact
+// capability-probe request the workspace sends).
+const LOG_REQUESTS = process.env.TALARIA_LOG_REQUESTS === "1";
+
 // changeOrigin:false + ws:true → preserve Host header and proxy websocket
 // upgrades unchanged (byte-for-byte pass-through of the dashboard).
 const proxy = httpProxy.createProxyServer({
@@ -39,6 +44,11 @@ proxy.on("error", (err, _req, res) => {
 });
 
 const server = http.createServer((req, res) => {
+  const reqPath = req.url ?? "";
+  if (LOG_REQUESTS || reqPath.startsWith("/api/conductor")) {
+    console.log(`[talaria] ${req.method} ${reqPath}`);
+  }
+
   // Lightweight liveness endpoint for docker healthchecks (never proxied).
   if (req.url === "/__talaria/health") {
     res.statusCode = 200;

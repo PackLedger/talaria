@@ -9,10 +9,10 @@ fleet manager — as its orchestration brain, **without forking or modifying eit
 
 The full design rationale, verification status, and milestone plan live in [`PLAN.md`](./PLAN.md).
 
-> **Status:** M0 done — the contract diff + intercept allowlist are source-verified in
-> [`docs/m0-contract.md`](./docs/m0-contract.md). Code seams are populated to match (conductor
-> routes, mission-control paths/schemas); the single-mission round-trip (M2) is written but UNTESTED
-> pending a live stack. See [Milestones](#milestones).
+> **Status:** M0–M2 done and **verified live** (2026-07-01). Pass-through proxies the real Hermes
+> dashboard; the conductor capability-probe (`GET /api/conductor/missions`) is served; and a mission
+> `POST` round-trips to a real mission-control task. See [`docs/m0-contract.md`](./docs/m0-contract.md)
+> and [Milestones](#milestones). Next: M3 (poll/cancel + decomposition parity + the plugin adapter half).
 
 ---
 
@@ -76,11 +76,12 @@ Talaria must never break Hermes's native behavior. The blast radius is deliberat
 - **M0 — Spike ✅ done** ([`docs/m0-contract.md`](./docs/m0-contract.md)): contract diff + the
   `:9119` allowlist. Key finding — the dashboard has no `/api/conductor/*` routes, so Talaria *serves*
   them (translating to mission-control) rather than intercepting; everything else passes through.
-- **M1 — Pass-through proxy:** dashboard works identically through Talaria; capture the one remaining
-  unknown (the conductor capability-probe request).
-- **M2 — Mission translation:** serve `/api/conductor/missions` → mission-control `/api/tasks`
-  (written, untested); single mission round-trips to the board.
-- **M3 — Decomposition + broadcast + status round-trip:** full Conductor parity.
+- **M1 — Pass-through proxy ✅ (verified live):** dashboard works identically through Talaria; the
+  conductor capability-probe is `GET /api/conductor/missions` (200+JSON ⇒ available), now served.
+- **M2 — Mission translation ✅ (verified live):** `POST /api/conductor/missions` → mission-control
+  `POST /api/tasks`; a mission round-trips to the board (`TASK-001`).
+- **M3 — Decomposition + broadcast + status round-trip:** poll/cancel status mapping; decomposed/
+  broadcast parity (the `HERMES_MISSION_API_URL` PR); wire the plugin adapter half on the live fleet.
 - **M4 — Package as Hermes plugin + mission-control adapter PR.**
 - **M5 — OSS release:** MIT, README, compat matrix, `docker compose` demo.
 

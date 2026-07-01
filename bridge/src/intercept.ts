@@ -30,11 +30,14 @@ interface MissionRoute {
  * src/routes/api/conductor-spawn.ts). Translation targets are in docs/m0-contract.md.
  */
 export const MISSION_ROUTES: MissionRoute[] = [
+  // M1 (captured live): the workspace probes conductor availability with
+  // `GET /api/conductor/missions` and marks it AVAILABLE iff the response is
+  // 200 + application/json (gateway-capabilities.ts:probeConductor). Talaria must
+  // answer this bare GET so the workspace uses remote dispatch, not native-swarm.
+  { method: "GET", pattern: /^\/api\/conductor\/missions\/?$/, label: "list/probe missions" },
   { method: "POST", pattern: /^\/api\/conductor\/missions\/?$/, label: "create mission" },
   { method: "GET", pattern: /^\/api\/conductor\/missions\/[^/]+\/?$/, label: "poll mission" },
   { method: "DELETE", pattern: /^\/api\/conductor\/missions\/[^/]+\/?$/, label: "cancel mission" },
-  // TODO(M1): add the capability-probe route once captured live, so the workspace
-  // flips capabilities.conductor=true and uses remote dispatch (not native-swarm).
 ];
 
 /** Extract the mission id from `/api/conductor/missions/{id}`, or null. */
@@ -119,9 +122,21 @@ export async function handleMission(
     return;
   }
 
-  // GET (poll) / DELETE (cancel): need the MC-status → workspace-state map verified
-  // against a live workspace before shipping (avoid a guessed enum). See M0 § Open items.
   const id = missionIdFromPath(path);
+
+  // Bare `GET /api/conductor/missions` = the capability probe + mission list.
+  // 200 + application/json flips the workspace to remote dispatch (M1). We reach
+  // this only when mc.enabled (the !enabled guard above returns 503, which correctly
+  // makes the workspace fall back to native-swarm when no brain is configured).
+  if (method === "GET" && id === null) {
+    // TODO(M3): populate from mission-control (GET /api/tasks) once the mission
+    // list view is wired; an empty list is sufficient for the probe today.
+    sendJson(res, 200, { missions: [] });
+    return;
+  }
+
+  // GET {id} (poll) / DELETE {id} (cancel): need the MC-status → workspace-state map
+  // verified against a live workspace before shipping (avoid a guessed enum). M3.
   sendJson(res, 501, {
     error: "talaria: conductor poll/cancel not yet implemented (M3)",
     mission_id: id,

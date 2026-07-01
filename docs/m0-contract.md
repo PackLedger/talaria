@@ -38,12 +38,14 @@ workspace Conductor ──POST /api/conductor/missions──► TALARIA ──tr
 | GET | `/api/conductor/missions/{id}` | poll mission status (`?lines=`) | `GET /api/tasks/{id}` (map status) |
 | DELETE | `/api/conductor/missions/{id}` | cancel mission | `PUT /api/tasks/{id}` `{status:"done"|cancelled}` |
 
-**PLUS the capability probe** — the workspace decides `capabilities.conductor` by probing the
-dashboard. Talaria must answer the probe affirmatively so the workspace uses remote dispatch instead
-of native-swarm. **TODO(M1): capture the exact probe request** (method+path — likely
-`GET/OPTIONS /api/conductor/missions` or a field in `GET /api/status`) by diffing a live workspace
-boot with `HERMES_DASHBOARD_URL` → a logging proxy. This is the one remaining unknown; everything
-else is source-confirmed.
+**PLUS the capability probe — RESOLVED (M1, verified live 2026-07-01).** The workspace decides
+`capabilities.conductor` via `probeConductor` (`gateway-capabilities.ts:581`): it sends
+**`GET /api/conductor/missions`** and marks conductor **available iff the response is `200` +
+`Content-Type: application/json`** (`404/405` → native-swarm; a `200 text/html` SPA-fallback →
+native-swarm; `401` → available). So Talaria serves the bare `GET /api/conductor/missions` with
+`200 {"missions":[]}`. Confirmed against a live workspace: on boot it probes, the bridge serves 200
+JSON, and the workspace flips to remote dispatch. (When `mc.enabled` is false the bridge returns 503
+on the probe → the workspace correctly falls back to native-swarm.)
 
 **PASS THROUGH (everything else, byte-for-byte):** all 164 dashboard routes — `/api/status`,
 `/api/sessions/*`, `/api/config/*`, `/api/skills/*`, `/api/mcp/*`, `/api/cron/*`, `/api/profiles/*`,
@@ -125,9 +127,25 @@ Source-read 2026-06-30 (shallow clones in scratch; not vendored):
 - **hermes-agent** `NousResearch/hermes-agent` (vendored `ai/hermes-upstream`) —
   `hermes_cli/web_server.py` (164 routes + 4 ws), `dashboard_auth/{routes,middleware,public_paths}.py`.
 
+## Status
+
+- **M0 ✅** contract + allowlist (this doc).
+- **M1 ✅ (verified live 2026-07-01):** pass-through proxy works against the live `kanban-dashboard`;
+  the conductor capability-probe is `GET /api/conductor/missions` (200+JSON ⇒ available), now served.
+- **M2 ✅ (verified live 2026-07-01):** `POST /api/conductor/missions {name,prompt}` through the bridge
+  created mission-control task `id:1` `TASK-001` (title=name, description=prompt, `metadata.talaria`
+  stamped); bridge returned `{id, name, session_id:"TASK-001"}`. Single mission round-trips to the board.
+
+  *How it was verified:* `talaria/stack` brought up on the `edge` net (bridge → live `kanban-dashboard`
+  pass-through; workspace → bridge; mission-control built from `talaria/vendor/mission-control`). Auth:
+  bridge + mission-control share `MISSION_CONTROL_API_KEY` (`x-api-key`).
+
 ## Open items (ranked)
 
-1. **M1:** capture the exact conductor **capability-probe** request (the one unknown) via a logging proxy.
-2. **M2:** implement `/api/conductor/missions` POST→`/api/tasks`; single mission round-trips to the board.
-3. **M3:** status-state mapping fidelity; decomposed/broadcast parity → the `HERMES_MISSION_API_URL` upstream PR.
-4. **M5:** vendor + pin mission-control build; compatibility matrix.
+1. **M3 — poll/cancel:** `GET/DELETE /api/conductor/missions/{id}` → map mission-control task status →
+   the workspace mission-state enum (currently 501). Confirm the enum against a live remote mission.
+2. **M3 — parity:** decomposed/broadcast dispatch is workspace-local (`:3000`), not via the dashboard —
+   full parity needs the `HERMES_MISSION_API_URL` upstream PR (recommended) or a second local seam.
+3. **M3 — the adapter half:** wire the Talaria plugin's register/heartbeat/report on the live fleet
+   (currently no-op) so agents pull assigned work from mission-control.
+4. **M5:** pin the mission-control build (commit) + fold in upstream hardening; compatibility matrix.
