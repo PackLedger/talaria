@@ -37,26 +37,55 @@ _agent_id: str = ""
 _registered = False
 # Sessions we've already seen, so we register-on-first-touch at most once.
 _seen_sessions: set = set()
+# Background heartbeat (started once after registration; daemon, dies with the process).
+_heartbeat_thread = None
+_stop = threading.Event()
 
 
 def _agent_identity() -> Dict[str, Any]:
-    """Best-effort agent identity for mission-control registration.
+    """Agent identity for mission-control's POST /api/agents/register schema.
 
-    TODO(M0): enrich with the real Hermes profile/model once the mission-control
-    agent schema is confirmed. Env vars below already exist in the fleet's
-    &agent-env anchor (see ai/orchestration/docker-compose.yml).
+    Fields: name, role (coder|reviewer|tester|devops|researcher|assistant|agent),
+    capabilities[], framework. name/role/capabilities come from env so each fleet
+    agent self-describes (see the &agent-env anchor). Verified against MC 2026-07-01.
     """
+    caps = os.environ.get("TALARIA_AGENT_CAPABILITIES", "")
     return {
         "name": os.environ.get("API_SERVER_MODEL_NAME", "") or os.environ.get("HERMES_AGENT_NAME", ""),
-        "model": os.environ.get("LLM_MODEL", ""),
-        "adapter": "hermes",
-        "talaria_version": "0.1.0",
+        "role": os.environ.get("TALARIA_AGENT_ROLE", "agent"),
+        "capabilities": [c.strip() for c in caps.split(",") if c.strip()],
+        "framework": "hermes",
     }
+
+
+def _heartbeat_seconds() -> int:
+    """Heartbeat interval (0 = disabled). Opt-in so the plugin stays inert by default."""
+    try:
+        return max(0, int(os.environ.get("TALARIA_HEARTBEAT_SECONDS", "0")))
+    except ValueError:
+        return 0
+
+
+def _heartbeat_loop(agent_id: str, interval: int) -> None:
+    """Daemon loop: poll mission-control for assigned work + keep last_seen fresh.
+
+    Logs assigned-work counts. Dispatching pulled work INTO the Hermes run loop is a
+    deeper integration (M4) — this establishes the agent as a live, observable fleet
+    node and the pull channel; execution wiring lands next.
+    """
+    while not _stop.wait(interval):
+        try:
+            hb = _client.heartbeat(agent_id) or {}
+            if hb.get("status") == "WORK_ITEMS_FOUND":
+                logger.info("talaria: heartbeat — %s work item(s) for agent %s",
+                            hb.get("total_items"), agent_id)
+        except Exception as exc:  # never let the loop die
+            logger.debug("talaria heartbeat failed: %s", exc)
 
 
 def _ensure_registered() -> None:
     """Register this agent with mission-control exactly once (no-op if disabled)."""
-    global _agent_id, _registered
+    global _agent_id, _registered, _heartbeat_thread
     if _registered or not _client.enabled:
         return
     with _lock:
@@ -67,6 +96,14 @@ def _ensure_registered() -> None:
             _agent_id = agent_id
             _registered = True
             logger.info("talaria: registered agent with mission-control (id=%s)", agent_id)
+            interval = _heartbeat_seconds()
+            if interval and _heartbeat_thread is None:
+                _heartbeat_thread = threading.Thread(
+                    target=_heartbeat_loop, args=(agent_id, interval),
+                    name="talaria-heartbeat", daemon=True,
+                )
+                _heartbeat_thread.start()
+                logger.info("talaria: heartbeat started (every %ss)", interval)
         else:
             # Leave _registered False so we retry on the next session; disabled or
             # unreachable brain must not wedge the agent.
@@ -80,7 +117,6 @@ def _on_session_start(session_id: str = "", **_: Any) -> None:
         _ensure_registered()
         with _lock:
             _seen_sessions.add(session_id or "default")
-        # TODO(M0/M2): start/refresh the heartbeat poll for assigned work here.
     except Exception as exc:  # never break the turn
         logger.debug("talaria on_session_start failed: %s", exc)
 
@@ -96,8 +132,10 @@ def _on_post_tool_call(
     try:
         if not _client.enabled or not task_id:
             return
-        # TODO(M2): translate Hermes tool outcome → mission-control task report.
-        # _client.report_task(task_id, status or "in_progress", result)
+        # Report progress on a mission-control-assigned task. We move toward
+        # quality_review (the review handoff) but NEVER to 'done' — that transition
+        # is Aegis/human-gated in mission-control and we don't bypass it.
+        _client.report_task(task_id, status or "in_progress")
     except Exception as exc:  # never break the turn
         logger.debug("talaria post_tool_call failed: %s", exc)
 

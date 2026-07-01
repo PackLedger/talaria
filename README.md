@@ -83,8 +83,13 @@ Talaria must never break Hermes's native behavior. The blast radius is deliberat
   `POST /api/tasks`; a mission round-trips to the board (`TASK-001`).
 - **M3 — Status round-trip ✅ (verified live):** `GET/DELETE /api/conductor/missions/{id}` poll +
   cancel round-trip (status mapped from the mission-control task; `done` stays Aegis-gated, not
-  bypassed). **Remaining:** decomposed/broadcast parity (the `HERMES_MISSION_API_URL` PR) + wiring the
-  plugin adapter half on the live fleet.
+  bypassed).
+- **M3 — Adapter half ✅ (verified live):** the plugin registers each agent
+  (`POST /api/agents/register`), heartbeat-polls for assigned work, and reports progress via
+  `PUT /api/tasks/{id}` (toward `quality_review`, never Aegis-gated `done`). Verified against a live
+  mission-control (register → heartbeat pulls assigned task → report). **Remaining:** decomposed/
+  broadcast parity (the `HERMES_MISSION_API_URL` PR); execute pulled work in-agent (M4); enable on the
+  live fleet (`--force-recreate`, deferred).
 - **M4 — Package as Hermes plugin + mission-control adapter PR.**
 - **M5 — OSS release:** MIT, README, compat matrix, `docker compose` demo.
 

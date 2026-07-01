@@ -153,13 +153,26 @@ Source-read 2026-06-30 (shallow clones in scratch; not vendored):
   never forces `done`; completion flows through mission-control's (human) approval, which maps to
   `completed` on the next poll. This matches PackLedger's human-only-Done posture ([[plane-lifecycle]]).
 
+- **M3 adapter half ✅ (verified live 2026-07-01):** the Talaria **plugin** register/heartbeat/report
+  cycle works against mission-control. Register = `POST /api/agents/register`
+  `{name, role, capabilities, framework:"hermes"}` → `{agent:{id}}`; a background heartbeat thread
+  (opt-in `TALARIA_HEARTBEAT_SECONDS`) polls `GET /api/agents/{id}/heartbeat` and logs
+  `WORK_ITEMS_FOUND`; `post_tool_call` reports via `PUT /api/tasks/{id}` (moves toward
+  `quality_review`, never `done` — Aegis-gated). Verified standalone: register → agent appears in MC →
+  assigned task pulled by heartbeat (`4 work item(s)`) → report moved the task to `in_progress`.
+  Fleet wiring staged (no-op until enabled): `TALARIA_MISSION_CONTROL_URL` +
+  `TALARIA_HEARTBEAT_SECONDS` on the `&agent-env` anchor; per-agent `TALARIA_AGENT_ROLE`.
+
 ## Open items (ranked)
 
 1. **M3 — decomposition/broadcast parity:** those dispatch flavors are workspace-local (`:3000`),
    not via the dashboard — full parity needs the `HERMES_MISSION_API_URL` upstream PR (recommended)
    or a second local seam. (Single-mission conductor path is done.)
-2. **M3 — the adapter half:** wire the Talaria plugin's register/heartbeat/report on the live fleet
-   (currently no-op) so agents pull assigned work from mission-control.
+2. **M4 — execute pulled work:** the heartbeat pulls assigned tasks but does not yet dispatch them
+   INTO the Hermes run loop (deeper integration). Today the plugin makes each agent a live, reporting
+   fleet node; autonomous execution of pulled work is next.
 3. **M3 — mission log lines:** the poll record's `lines: []` is empty (mission-control has no conductor
    log stream); optionally surface task comments/activity there.
-4. **M5:** pin the mission-control build (commit) + fold in upstream hardening; compatibility matrix.
+4. **Enable on the live fleet:** set `TALARIA_MISSION_CONTROL_URL` + `TALARIA_HEARTBEAT_SECONDS` and
+   `docker compose up -d --force-recreate` the 8 agents (deferred — not yet done).
+5. **M5:** pin the mission-control build (commit) + fold in upstream hardening; compatibility matrix.
