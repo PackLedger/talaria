@@ -1,8 +1,14 @@
 # Phase 2 — Talaria's own UI
 
-> Status: plan / not started. Phase 1 (the two-plane framework in front of the real hermes-workspace +
-> mission-control) is the on-ramp and stays useful. Phase 2 makes Talaria a product with its own
-> frontend and identity.
+> Status: **started (2026-07-01).** The app is scaffolded in [`ui/`](../ui) (Vite + TanStack Start),
+> the design system is decided and built (**Mercury**, dark + light), and auth has landed (Google OAuth
+> + username/password, each independently toggleable). Phase 1 (the two-plane framework in front of the
+> real hermes-workspace + mission-control) is the on-ramp and stays useful. Phase 2 makes Talaria a
+> product with its own frontend and identity.
+>
+> **Decided so far:** framework = Vite + TanStack Start · design system = **Mercury** (see below) ·
+> auth = a pluggable, env-gated provider registry (Google first). **Next:** P2.1 — agent picker +
+> streaming chat over the gateway plane.
 
 ## The idea
 
@@ -59,9 +65,18 @@ hitting both directly (open question below).
   lifted as-is. That's the cheaper direction overall, since data-fetching/table/board views port more
   easily than live streaming chat. Practically: TanStack Start for the app + server routes (same shape as
   hermes-workspace's own API routes), TanStack Query for data, TanStack Router for the shell.
-- **Design system:** one component library + tokens for both views (so simple/advanced feel like one
-  product). Adopt whichever upstream's styling is closer, or a neutral base (e.g. shadcn/Tailwind).
-- **Auth/SSO:** reuse the existing Cloudflare Access / Google SSO gate; role drives which view a user sees.
+- **Design system: Mercury. DECIDED + BUILT.** A hand-rolled Tailwind v4 token system in the same
+  cyberpunk-HUD family as hermes-workspace (deep-navy sci-fi, `framer-motion`) — deliberately *not* a
+  component library, because both upstreams already are hand-rolled sci-fi (not shadcn look-alikes). We
+  match hermes-workspace's `--theme-*` token *contract* exactly so its chat components lift with near-zero
+  friction, but ship Talaria's own identity: Mercury-the-planet neutrals (graphite / basalt / regolith)
+  with a violet→magenta neon accent. Two modes — `mercury` (dark) and `mercury-light`. Tokens live in
+  [`ui/src/styles.css`](../ui/src/styles.css).
+- **Auth/SSO: pluggable + env-gated. Google OAuth + username/password shipped.** Each provider is
+  independently enable-able (enabled only when its flag is on *and* its secrets are present), via the
+  registry in [`ui/src/server/auth/config.ts`](../ui/src/server/auth/config.ts). Sessions are stateless
+  HMAC-signed cookies. Adding GitHub / Microsoft / generic OIDC is a small change. Role-drives-view and
+  the Cloudflare Access gate still layer on top.
 - **Streaming:** the chat view needs SSE (already how the gateway plane streams).
 
 ## What to lift from each upstream (candidates)
@@ -99,15 +114,22 @@ Early task: a **component inventory** pass to mark each as lift-as-is / adapt / 
 
 ## Milestones
 
-- **P2.0 — Component inventory + shell decision.** Pick the framework + design system; audit which
-  upstream components lift cleanly vs need a rebuild. Output: a component map + the tech decision.
-- **P2.1 — Simple view MVP.** Our shell, agent picker + streaming chat over the gateway plane, our
-  branding. This alone could replace hermes-workspace as the normie UI.
+- **P2.0 — Component inventory + shell decision. ✅ (core done).** Framework (Vite + TanStack Start) and
+  design system (Mercury) decided and built; the `ui/` shell, login, and auth are live. Both upstreams
+  are vendored under [`vendor/`](../vendor) (gitignored) as lift sources. Still open: the per-component
+  lift/adapt/rebuild map (weighted toward mission-control's Next→TanStack ports).
+- **P2.1 — Simple view MVP. 🟡 in progress.** Shell + branding + auth done; **next up** is the agent
+  picker + streaming chat over the gateway plane (`/v1/models`, model-routed chat). This alone could
+  replace hermes-workspace as the normie UI.
 - **P2.2 — Advanced view MVP.** Fleet dashboard (agents + cost) + task board over mission-control REST,
   behind the mode toggle.
 - **P2.3 — Missions + sessions + activity** in both views; polish the simple ↔ advanced handoff.
 - **P2.4 — Identity + release.** Branding, docs, one deployable image; retire the two external UIs from the
   stack (Talaria UI is now the single front door).
+- **P2.5 (later) — All-in-one self-hosted super-dashboard.** Beyond the Hermes fleet, monitor local
+  **inference stacks** (Ollama, vLLM, llama.cpp, LM Studio, TGI, …): health, loaded models, GPU/VRAM,
+  tokens/sec. Turns Talaria into the single pane of glass for a self-hosted Hermes rig — the agents *and*
+  the metal underneath them.
 
 ## Open questions
 
@@ -120,7 +142,9 @@ Early task: a **component inventory** pass to mark each as lift-as-is / adapt / 
   cleaner but slower. Decide per component in P2.0. (hermes-workspace components lift; mission-control
   views mostly rebuild-in-TanStack.)
 - **Where the simple ↔ advanced toggle lives**, and whether it's user-choice or purely role-gated.
-- **Design system / branding** for Talaria as a product.
+- ~~Design system / branding~~ **Decided: Mercury** — hand-rolled Tailwind v4 tokens (dark + light),
+  violet→magenta on Mercury-planet neutrals; matches hermes-workspace's token contract so its chat
+  components lift. See Tech.
 
 ## Definition of done (first real cut)
 

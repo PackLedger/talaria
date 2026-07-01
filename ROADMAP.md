@@ -56,9 +56,17 @@ chat/agents runtime) are deliberately untouched and would need a small upstream 
 
 Legend: ✅ done · 🟡 bridge-only, buildable now · 🔵 needs an upstream hermes-workspace change · ⚪ out of scope by design.
 
-## Phase 2 — one product, its own identity (bookmarked)
+## Phase 2 — one product, its own identity (started 2026-07-01)
 
-> Full plan: [`docs/PHASE2-UI-PLAN.md`](./docs/PHASE2-UI-PLAN.md).
+> Full plan: [`docs/PHASE2-UI-PLAN.md`](./docs/PHASE2-UI-PLAN.md). The app lives in [`ui/`](./ui).
+
+**Underway.** Talaria's own UI is scaffolded (Vite + TanStack Start, matching hermes-workspace so its
+chat components lift). Design system **decided + built**: **Mercury** — hand-rolled Tailwind v4 tokens,
+violet→magenta neon on Mercury-planet neutrals, dark + light. **Auth landed:** a pluggable, env-gated
+provider registry (each provider independently toggleable) with **Google OAuth** and username/password,
+stateless HMAC sessions, and a login screen that renders only what's enabled. Next: P2.1 — the agent
+picker + streaming chat over the gateway plane. Later (P2.5): monitor local inference stacks (Ollama,
+vLLM, llama.cpp, …) so Talaria becomes an all-in-one self-hosted Hermes super-dashboard.
 
 Today Talaria is the *seam* between two external UIs. The real flex is making it a **product** with its
 own UI and its own identity. Not a fork of either upstream (that's a maintenance trap), but our own
