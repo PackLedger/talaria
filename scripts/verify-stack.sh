@@ -86,5 +86,13 @@ kid=$(curl -s -X POST "$BRIDGE/api/plugins/kanban/tasks" -H 'Content-Type: appli
 curl -s -X PATCH "$BRIDGE/api/plugins/kanban/tasks/$kid" -H 'Content-Type: application/json' -d '{"status":"in_progress"}' \
   | grep -q '"status":"in_progress"' && pass "PATCH card inbox→in_progress (drag-to-move)" || fail "kanban move failed"
 
+echo "== Gateway plane: fleet multiplexer (agents-as-models) =="
+GW="${GW:-http://127.0.0.1:8642}"
+models=$(curl -s "$GW/v1/models")
+echo "$models" | grep -q '"object":"model"' \
+  && pass "GET /v1/models lists the fleet ($(echo "$models" | grep -oE '"id":"[^"]+"' | wc -l | tr -d ' ') agents)" \
+  || fail "gateway plane /v1/models not served"
+curl -s "$GW/health" | grep -q '"ok":true' && pass "gateway plane /health ok" || fail "gateway plane health failed"
+
 echo
-echo "ALL PASS — Talaria M1/M2/M3/M4 + fleet kanban view verified against the running stack."
+echo "ALL PASS — Talaria M1-M4 + fleet kanban + gateway multiplexer verified against the running stack."

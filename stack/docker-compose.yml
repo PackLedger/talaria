@@ -25,17 +25,25 @@ services:
       MISSION_CONTROL_API_KEY_FILE: /run/secrets/talaria_mc_key
       # M1: log conductor probe/dispatch requests (set 1 to capture the capability probe).
       TALARIA_LOG_REQUESTS: ${TALARIA_LOG_REQUESTS:-0}
+      # ── Gateway plane (fleet multiplexer): workspace HERMES_API_URL → :8642 here ──
+      TALARIA_GATEWAY_PORT: "8642"
+      TALARIA_FLEET_FILE: /run/talaria/fleet.json # the fleet manifest (agent → gateway + key)
+      TALARIA_DEFAULT_MODEL: ${TALARIA_DEFAULT_MODEL:-dex-developer}
     secrets:
       - talaria_mc_key
+    volumes:
+      - ./fleet.json:/run/talaria/fleet.json:ro # gitignored; agents + per-agent keys
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9119/__talaria/health >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 20s
-    networks: [default, edge]
+    # edge → tunnel/live dashboard; ai_default → reach the agent gateways by name.
+    networks: [default, edge, ai_default]
     ports:
-      - "127.0.0.1:9119:9119" # local debug only; public path is via the tunnel
+      - "127.0.0.1:9119:9119" # dashboard plane (local debug)
+      - "127.0.0.1:8642:8642" # gateway plane / fleet multiplexer (local debug)
 
   # ── The brain: agent-agnostic fleet manager (task queue + cost ledger owner) ──
   mission-control:
@@ -99,6 +107,10 @@ networks:
   edge:
     external: true
     name: packledger-services_edge
+  # The ai/orchestration fleet network — lets the gateway plane reach agent-* gateways by name.
+  ai_default:
+    external: true
+    name: ai_default
 
 volumes:
   mission-control-data:

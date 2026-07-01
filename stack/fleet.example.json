@@ -1,0 +1,5 @@
+[
+  { "model": "penny-administrative-assistant", "url": "http://agent-administrative-assistant:8642", "key": "CHANGE_ME", "label": "Penny" },
+  { "model": "dex-developer",                  "url": "http://agent-developer:8642",                "key": "CHANGE_ME", "label": "Dex" },
+  { "model": "sam-support",                    "url": "http://agent-support:8642",                  "key": "CHANGE_ME", "label": "Sam" }
+]

@@ -18,3 +18,7 @@ vendor/
 # OS / editor
 .DS_Store
 *.swp
+
+# Fleet manifest (agent gateways + per-agent keys) — never commit
+stack/fleet.json
+fleet.json

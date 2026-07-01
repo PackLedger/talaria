@@ -16,6 +16,7 @@ import { loadConfig } from "./config.js";
 import { MissionControlClient } from "./missionControl.js";
 import { isMissionRoute, handleMission, MISSION_ROUTES } from "./intercept.js";
 import { isKanbanRoute, handleKanban } from "./kanban.js";
+import { startGatewayPlane } from "./gatewayPlane.js";
 
 const cfg = loadConfig();
 const mc = new MissionControlClient(cfg);
@@ -94,8 +95,12 @@ server.on("upgrade", (req, socket, head) => {
 
 server.listen(cfg.port, () => {
   console.log(
-    `[talaria] bridge listening on :${cfg.port} → dashboard ${cfg.dashboardUpstream}` +
+    `[talaria] dashboard plane on :${cfg.port} → dashboard ${cfg.dashboardUpstream}` +
       ` | mission-control ${mc.enabled ? cfg.missionControlUrl : "(disabled)"}` +
-      ` | intercepting ${MISSION_ROUTES.length} route(s)`,
+      ` | intercepting ${MISSION_ROUTES.length} conductor route(s)` +
+      ` | kanban-from-mc ${mc.enabled && cfg.kanbanFromMc ? "on" : "off"}`,
   );
 });
+
+// Second plane: the fleet multiplexer (no-op if no fleet manifest is configured).
+startGatewayPlane(cfg);
