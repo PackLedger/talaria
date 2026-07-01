@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getSessionUser } from '@/server/auth/session'
-import { boardRole, canEdit } from '@/server/boards'
+import { boardAllowsAgent, boardRole, canEdit } from '@/server/boards'
 import { createTask, listBoardTasks, PRIORITIES } from '@/server/tasks'
 
 // GET → the board's tasks (any member). POST → create a card (owner/editor).
@@ -30,6 +30,9 @@ export const Route = createFileRoute('/api/boards/$id/tasks')({
           })
           .safeParse(await request.json().catch(() => null))
         if (!parsed.success) return json({ error: 'bad request' }, { status: 400 })
+        if (parsed.data.assignedTo && !(await boardAllowsAgent(params.id, parsed.data.assignedTo))) {
+          return json({ error: 'that agent is not allowed on this board' }, { status: 400 })
+        }
         const task = await createTask({
           boardId: params.id,
           title: parsed.data.title,

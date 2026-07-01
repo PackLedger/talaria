@@ -3,7 +3,7 @@ import { json } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getSessionUser } from '@/server/auth/session'
 import { checkAgentKey } from '@/server/agent-auth'
-import { boardRole, canEdit } from '@/server/boards'
+import { boardAllowsAgent, boardRole, canEdit } from '@/server/boards'
 import { deleteTask, getTask, getTaskFull, PRIORITIES, TASK_STATUSES, updateTask } from '@/server/tasks'
 
 const AllStatuses = [...TASK_STATUSES, 'failed', 'cancelled'] as const
@@ -50,6 +50,9 @@ export const Route = createFileRoute('/api/tasks/$id')({
         // Approval gate: agents can't self-complete — they land in quality_review
         // for a human to approve to done.
         if (agent && parsed.data.status === 'done') parsed.data.status = 'quality_review'
+        if (parsed.data.assignedTo && !(await boardAllowsAgent(task.boardId, parsed.data.assignedTo))) {
+          return json({ error: 'that agent is not allowed on this board' }, { status: 400 })
+        }
         const updated = await updateTask(params.id, parsed.data, actor)
         return json({ task: updated })
       },

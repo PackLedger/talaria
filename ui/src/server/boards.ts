@@ -109,3 +109,27 @@ export async function unshareBoard(boardId: string, userId: string): Promise<voi
   // Never remove the owner via unshare.
   await sql`delete from board_members where board_id = ${boardId} and user_id = ${userId} and role <> 'owner'`
 }
+
+// ── Board-scoped agents ──────────────────────────────────────────────────────
+/** The agents allowed on a board (empty ⇒ all fleet agents allowed). */
+export async function listBoardAgents(boardId: string): Promise<string[]> {
+  const sql = await db()
+  const rows = await sql`select agent_model from board_agents where board_id = ${boardId} order by agent_model`
+  return (rows as unknown as Array<{ agent_model: string }>).map((r) => r.agent_model)
+}
+
+export async function setBoardAgents(boardId: string, models: string[]): Promise<void> {
+  const sql = await db()
+  await sql.begin(async (tx) => {
+    await tx`delete from board_agents where board_id = ${boardId}`
+    for (const m of models) {
+      await tx`insert into board_agents (board_id, agent_model) values (${boardId}, ${m}) on conflict do nothing`
+    }
+  })
+}
+
+/** Whether an agent may be assigned on a board (open by default). */
+export async function boardAllowsAgent(boardId: string, model: string): Promise<boolean> {
+  const list = await listBoardAgents(boardId)
+  return list.length === 0 || list.includes(model)
+}

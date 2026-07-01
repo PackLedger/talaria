@@ -45,6 +45,27 @@ export function useBoardTasks(boardId: string | null) {
   })
 }
 
+/** The board's allowed-agent list (empty array ⇒ all fleet agents allowed). */
+export function useBoardAgents(boardId: string | null) {
+  return useQuery({
+    queryKey: ['board-agents', boardId],
+    enabled: !!boardId,
+    queryFn: async (): Promise<string[]> => {
+      const r = await fetch(`/api/boards/${boardId}/agents`, { credentials: 'same-origin' })
+      if (!r.ok) return []
+      return (await r.json()).models
+    },
+  })
+}
+
+export const setBoardAgents = (boardId: string, models: string[]) =>
+  fetch(`/api/boards/${boardId}/agents`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ models }),
+  }).then(j)
+
 export function useBoardMembers(boardId: string | null) {
   return useQuery({
     queryKey: ['board-members', boardId],

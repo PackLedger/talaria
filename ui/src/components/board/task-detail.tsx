@@ -14,6 +14,7 @@ import {
   reviewTask,
   unwatchTask,
   updateTask,
+  useBoardAgents,
   useTask,
   watchTask,
   type Board,
@@ -29,7 +30,10 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
   const { data } = useTask(taskId)
   const { data: fleet } = useAgents()
   const { data: user } = useSession()
-  const agents = fleet?.agents ?? []
+  const { data: boardAgents = [] } = useBoardAgents(board.id)
+  const allAgents = fleet?.agents ?? []
+  // Restrict the assignee list to the board's allowed agents (empty ⇒ all).
+  const agents = boardAgents.length ? allAgents.filter((a) => boardAgents.includes(a.id)) : allAgents
   const canEdit = board.role === 'owner' || board.role === 'editor'
   const me = user?.email ?? user?.name ?? ''
 
