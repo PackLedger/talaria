@@ -19,8 +19,8 @@ export const NAV: NavSection[] = [
     title: 'Workspace',
     items: [
       { to: '/', label: 'Chat', icon: '◈' },
+      { to: '/boards', label: 'Boards', icon: '⧉' },
       { to: '/missions', label: 'Missions', icon: '◎' },
-      { to: '/swarm', label: 'Swarm', icon: '⧉' },
     ],
   },
   {
