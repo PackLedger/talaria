@@ -43,10 +43,12 @@ export function AgentPicker({
         )}
       >
         <Avatar name={current?.label} />
-        <span className="min-w-0 flex-1 truncate text-left text-fg">
-          {loading ? 'Loading fleet…' : current ? current.label : 'Select an agent'}
+        <span className="min-w-0 flex-1 text-left">
+          <span className="block truncate text-fg">
+            {loading ? 'Loading fleet…' : current ? current.label : 'Select an agent'}
+          </span>
+          {current?.role && <span className="block truncate text-xs text-muted">{current.role}</span>}
         </span>
-        {current?.role && <span className="truncate text-muted">{current.role}</span>}
         <span className="text-muted">▾</span>
       </button>
 
