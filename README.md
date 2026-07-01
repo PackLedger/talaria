@@ -1,21 +1,15 @@
-# Talaria
+# Talaria 🪽👟
 
 > *Talaria: the winged sandals of Hermes, the thing that carries him between worlds.*
 
 Talaria is a little bridge with a big job. It lets the slick Hermes-native UI
 [**hermes-workspace**](https://github.com/outsourc-e/hermes-workspace) use a battle-tested,
 framework-agnostic fleet manager, [**mission-control**](https://github.com/builderz-labs/mission-control),
-as its brain. Best of both worlds, and you don't fork or patch either one. You just point one env var
-at Talaria and you're off.
+as its brain. Best of both worlds, and you don't fork or patch either one. You point one env var at
+Talaria and you're off.
 
-Want the long version (why, how, what we checked)? It's in [`PLAN.md`](./PLAN.md) and
-[`docs/m0-contract.md`](./docs/m0-contract.md).
-
-> **Where it's at:** M0 through M4 are done and *actually verified against a live stack* (2026-07-01),
-> not just "compiles on my machine." Missions created in the workspace land as real tasks in
-> mission-control, poll/cancel round-trip, every agent registers and heartbeats, and Hermes shows up
-> as a first-class framework in mission-control. Run [`scripts/verify-stack.sh`](./scripts/verify-stack.sh)
-> and watch it go green. What's left is the fun stretch goals (see [Milestones](#milestones)).
+(Status, milestones, and the wishlist live in [`ROADMAP.md`](./ROADMAP.md). The design rationale and
+the wire-level contract are in [`PLAN.md`](./PLAN.md) and [`docs/m0-contract.md`](./docs/m0-contract.md).)
 
 ## Why bother
 
@@ -26,9 +20,9 @@ or you want to know what the whole fleet is spending.
 
 mission-control already solves all of that: cross-host fan-out, a durable (SQLite) task queue, cost
 and token governance, health checks and crash recovery, agent-to-agent messaging. So instead of
-rebuilding any of it, Talaria just wires the workspace's brain into mission-control's muscle. And the
-best part: **every node stays a full Hermes agent**, memory and skills and learning intact. We're
-orchestrating smart agents, not dumb workers.
+rebuilding any of it, Talaria wires the workspace's brain into mission-control's muscle. And the best
+part: **every node stays a full Hermes agent**, memory and skills and learning intact. We orchestrate
+smart agents, not dumb workers.
 
 ## How the seam works
 
@@ -59,14 +53,33 @@ Here's the fun bit we found while building it: the Hermes dashboard **doesn't ev
 locally. So Talaria isn't hijacking anything. It's *filling in a gap*, answering routes nobody else
 answers and passing the other ~160 straight through. That's why it's so safe (more on that below).
 
-Three pieces, one repo:
+### The pieces
 
 | Path | Piece | What it does |
 |---|---|---|
 | [`bridge/`](./bridge) | **talaria-bridge** (Node/TS) | Sits in front of the dashboard `:9119`, serves the conductor routes, proxies the rest untouched. |
 | [`plugin/talaria/`](./plugin/talaria) | **Talaria Hermes plugin** | Rides along on each agent (`plugins.enabled: [talaria]`). Registers the agent with mission-control, heartbeats for work, reports progress. One source dir, bind-mounted read-only into every agent. |
-| [`adapter/`](./adapter) | **mission-control adapter** | A `HermesAdapter` that makes Hermes a first-class framework inside mission-control. Ready to PR upstream. |
+| [`adapter/`](./adapter) | **mission-control adapter** | A `HermesAdapter` that makes Hermes a first-class framework inside mission-control. |
 | [`stack/`](./stack) | **docker stack** | Compose that wires workspace + mission-control + bridge onto the shared `edge` network. |
+
+### The conductor path, end to end
+
+1. **Probe.** On boot the workspace sends `GET /api/conductor/missions`. It only uses remote dispatch
+   if that returns `200` + `application/json`, so the bridge serves exactly that (an empty mission
+   list). Otherwise the workspace falls back to native-swarm, which is the safe default.
+2. **Create.** `POST /api/conductor/missions {name, prompt}` becomes a mission-control
+   `POST /api/tasks {title, description, …}`. The bridge returns `{id, name, session_id}` shaped the
+   way the Conductor expects.
+3. **Poll / cancel.** `GET`/`DELETE /api/conductor/missions/{id}` map the mission-control task back to
+   the workspace mission record (`status` ∈ running/completed/failed/cancelled, plus `exit_code`).
+
+### The plugin, end to end
+
+Each agent's plugin talks to mission-control directly over REST: `POST /api/agents/register` on
+startup, an opt-in background heartbeat (`TALARIA_HEARTBEAT_SECONDS`) that polls
+`GET /api/agents/{id}/heartbeat` for assigned work, and `PUT /api/tasks/{id}` to report progress. It's
+distributed the "one source, N mounts" way: the plugin lives once in this repo and every agent
+bind-mounts that same directory read-only, so there's a single source of truth and no copy step.
 
 ## The "don't break anything" promise
 
@@ -88,44 +101,6 @@ One more: mission-control gates the final `done` on a task behind an approval st
 Talaria **does not** bypass that. Agents report their work up to `quality_review` and let the humans
 sign off, which happens to line up nicely with how PackLedger already runs its Done column.
 
-## Milestones
-
-- **M0 (spike) ✅** ([`docs/m0-contract.md`](./docs/m0-contract.md)): the contract diff and the `:9119`
-  allowlist. Headline finding: no `/api/conductor/*` on the dashboard, so Talaria serves them.
-- **M1 (pass-through) ✅ live:** the dashboard works identically through Talaria. The conductor
-  capability probe is `GET /api/conductor/missions` (wants `200` + JSON), and we serve it, so the
-  workspace picks remote dispatch over native-swarm.
-- **M2 (create) ✅ live:** `POST /api/conductor/missions` becomes a real mission-control task.
-- **M3 (poll + cancel) ✅ live:** `GET`/`DELETE /api/conductor/missions/{id}` round-trip, with status
-  mapped from the task. `done` stays human-gated.
-- **M3 (adapter half) ✅ live:** the plugin registers each agent, heartbeats for assigned work, and
-  reports progress. Verified end to end (register, get an assigned task via heartbeat, report it).
-- **M4 (packaging + mc adapter) ✅ live:** installs via `plugins.enabled: [talaria]`, and the
-  `HermesAdapter` makes Hermes first-class in mission-control (`GET /api/frameworks` lists `hermes`).
-  PR-ready patch in [`adapter/`](./adapter).
-- **M5 (OSS release) ✅ repo:** MIT, this README, a pinned compat matrix, the docker stack, a
-  reproducible [`verify-stack.sh`](./scripts/verify-stack.sh), plus [`CHANGELOG`](./CHANGELOG.md) and
-  [`CONTRIBUTING`](./CONTRIBUTING.md).
-
-### Still on the wishlist
-
-- **Decomposed and broadcast missions.** Those go through the workspace's *local* `:3000` endpoints,
-  not the dashboard, so the bridge can't see them yet. The clean fix is a small upstream PR to
-  hermes-workspace adding a `HERMES_MISSION_API_URL` override. That's next.
-- **Actually running the pulled work.** Right now the heartbeat *pulls* assigned tasks; wiring them
-  into the Hermes run loop so agents execute autonomously is the next layer.
-- **Flip it on for the live fleet.** The plugin's staged on all 8 agents but still a no-op until we
-  set the URL and recreate them.
-
-## Compatibility matrix
-
-Both upstreams move fast, so pin what you actually tested. This is the set we verified together
-(2026-07-01):
-
-| Talaria | hermes-workspace | mission-control | hermes-agent (dashboard) |
-|---|---|---|---|
-| 0.1.0 (unreleased) | v2.3.0, `ghcr.io/outsourc-e/hermes-workspace@sha256:2d2ba9aa…` | commit `d09e608` (build from source) | v0.16.0 (release 2026.6.5) |
-
 ## Kick the tires
 
 ```bash
@@ -134,7 +109,8 @@ docker compose -f stack/docker-compose.yml up -d --build
 ./scripts/verify-stack.sh                 # should print ALL PASS
 ```
 
-(mission-control has no published image, so it builds from source. See [`stack/README.md`](./stack/README.md).)
+mission-control has no published image, so it builds from source. See [`stack/README.md`](./stack/README.md)
+for the network prereqs and the pinned build commit.
 
 ## License
 
