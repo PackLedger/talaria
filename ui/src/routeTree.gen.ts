@@ -20,7 +20,6 @@ import { Route as ApiBoardsRouteImport } from './routes/api/boards'
 import { Route as ApiAgentsRouteImport } from './routes/api/agents'
 import { Route as AppSkillsRouteImport } from './routes/_app/skills'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
-import { Route as AppMissionsRouteImport } from './routes/_app/missions'
 import { Route as AppMemoryRouteImport } from './routes/_app/memory'
 import { Route as AppMcpRouteImport } from './routes/_app/mcp'
 import { Route as AppInferenceRouteImport } from './routes/_app/inference'
@@ -103,11 +102,6 @@ const AppSkillsRoute = AppSkillsRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMissionsRoute = AppMissionsRouteImport.update({
-  id: '/missions',
-  path: '/missions',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMemoryRoute = AppMemoryRouteImport.update({
@@ -268,7 +262,6 @@ export interface FileRoutesByFullPath {
   '/inference': typeof AppInferenceRoute
   '/mcp': typeof AppMcpRoute
   '/memory': typeof AppMemoryRoute
-  '/missions': typeof AppMissionsRoute
   '/settings': typeof AppSettingsRoute
   '/skills': typeof AppSkillsRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
@@ -309,7 +302,6 @@ export interface FileRoutesByTo {
   '/inference': typeof AppInferenceRoute
   '/mcp': typeof AppMcpRoute
   '/memory': typeof AppMemoryRoute
-  '/missions': typeof AppMissionsRoute
   '/settings': typeof AppSettingsRoute
   '/skills': typeof AppSkillsRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
@@ -353,7 +345,6 @@ export interface FileRoutesById {
   '/_app/inference': typeof AppInferenceRoute
   '/_app/mcp': typeof AppMcpRoute
   '/_app/memory': typeof AppMemoryRoute
-  '/_app/missions': typeof AppMissionsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/skills': typeof AppSkillsRoute
   '/api/agents': typeof ApiAgentsRouteWithChildren
@@ -398,7 +389,6 @@ export interface FileRouteTypes {
     | '/inference'
     | '/mcp'
     | '/memory'
-    | '/missions'
     | '/settings'
     | '/skills'
     | '/api/agents'
@@ -439,7 +429,6 @@ export interface FileRouteTypes {
     | '/inference'
     | '/mcp'
     | '/memory'
-    | '/missions'
     | '/settings'
     | '/skills'
     | '/api/agents'
@@ -482,7 +471,6 @@ export interface FileRouteTypes {
     | '/_app/inference'
     | '/_app/mcp'
     | '/_app/memory'
-    | '/_app/missions'
     | '/_app/settings'
     | '/_app/skills'
     | '/api/agents'
@@ -608,13 +596,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/missions': {
-      id: '/_app/missions'
-      path: '/missions'
-      fullPath: '/missions'
-      preLoaderRoute: typeof AppMissionsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/memory': {
@@ -833,7 +814,6 @@ interface AppRouteChildren {
   AppInferenceRoute: typeof AppInferenceRoute
   AppMcpRoute: typeof AppMcpRoute
   AppMemoryRoute: typeof AppMemoryRoute
-  AppMissionsRoute: typeof AppMissionsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppSkillsRoute: typeof AppSkillsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -851,7 +831,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppInferenceRoute: AppInferenceRoute,
   AppMcpRoute: AppMcpRoute,
   AppMemoryRoute: AppMemoryRoute,
-  AppMissionsRoute: AppMissionsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppSkillsRoute: AppSkillsRoute,
   AppIndexRoute: AppIndexRoute,
