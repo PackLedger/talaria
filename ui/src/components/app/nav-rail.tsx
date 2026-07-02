@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
+import { Plus, Users, Archive } from 'lucide-react'
 import { WingMark } from '@/components/brand'
 import { TeamsModal } from '@/components/board/teams-modal'
 import { CreateBoardModal } from '@/components/board/create-board-modal'
 import { cn } from '@/lib/cn'
 import { NAV } from '@/lib/nav'
-import { useBoards, type Board } from '@/lib/boards'
+import { useBoards, useArchivedBoards, type Board } from '@/lib/boards'
 import type { SessionUser } from '@/lib/session'
 
 // The main application menu. The Boards item expands to the user's boards
@@ -60,6 +61,8 @@ export function NavRail({ user }: { user: SessionUser }) {
 
 function BoardsSublist({ activePath, onNew, onTeams }: { activePath: string; onNew: () => void; onTeams: () => void }) {
   const { data: boards = [] } = useBoards()
+  const { data: archived = [] } = useArchivedBoards()
+  const [showArchived, setShowArchived] = useState(false)
 
   const groups = new Map<string, Board[]>()
   for (const b of boards) {
@@ -69,6 +72,19 @@ function BoardsSublist({ activePath, onNew, onTeams }: { activePath: string; onN
   }
   const ordered = [...groups.entries()].sort((a, b) => (a[0] === 'Personal' ? -1 : b[0] === 'Personal' ? 1 : a[0].localeCompare(b[0])))
 
+  const boardLink = (b: Board) => (
+    <Link
+      to="/boards/$boardId"
+      params={{ boardId: b.id }}
+      className={cn(
+        'block truncate rounded-md px-2 py-1 text-xs transition-colors hover:bg-card hover:text-fg',
+        activePath === `/boards/${b.id}` ? 'bg-card text-fg' : 'text-muted',
+      )}
+    >
+      {b.name}
+    </Link>
+  )
+
   return (
     <div className="ml-3 mt-0.5 space-y-2 border-l border-line-subtle pl-2">
       {ordered.map(([group, gboards]) => (
@@ -76,25 +92,37 @@ function BoardsSublist({ activePath, onNew, onTeams }: { activePath: string; onN
           <div className="px-2 text-[9px] font-semibold uppercase tracking-wider text-muted opacity-70">{group}</div>
           <ul className="space-y-0.5">
             {gboards.map((b) => (
-              <li key={b.id}>
-                <Link
-                  to="/boards/$boardId"
-                  params={{ boardId: b.id }}
-                  className={cn(
-                    'block truncate rounded-md px-2 py-1 text-xs transition-colors hover:bg-card hover:text-fg',
-                    activePath === `/boards/${b.id}` ? 'bg-card text-fg' : 'text-muted',
-                  )}
-                >
-                  {b.name}
-                </Link>
-              </li>
+              <li key={b.id}>{boardLink(b)}</li>
             ))}
           </ul>
         </div>
       ))}
+
+      {archived.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[9px] font-semibold uppercase tracking-wider text-muted opacity-70 transition-colors hover:text-fg"
+          >
+            <Archive size={11} /> Archived ({archived.length}) <span className="ml-auto">{showArchived ? '▾' : '▸'}</span>
+          </button>
+          {showArchived && (
+            <ul className="space-y-0.5">
+              {archived.map((b) => (
+                <li key={b.id}>{boardLink(b)}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col gap-0.5">
-        <button onClick={onNew} className="w-full rounded-md px-2 py-1 text-left text-xs text-muted transition-colors hover:text-accent">+ New board</button>
-        <button onClick={onTeams} className="w-full rounded-md px-2 py-1 text-left text-xs text-muted transition-colors hover:text-accent">Manage teams</button>
+        <button onClick={onNew} className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-muted transition-colors hover:text-accent">
+          <Plus size={13} /> New board
+        </button>
+        <button onClick={onTeams} className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs text-muted transition-colors hover:text-accent">
+          <Users size={13} /> Manage teams
+        </button>
       </div>
     </div>
   )

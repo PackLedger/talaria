@@ -3,7 +3,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Maximize2, ChevronLeft, Archive, ArchiveRestore, Trash2 } from 'lucide-react'
 import { RichEditor, type RichEditorHandle } from '@/components/ui/rich-editor'
+import { CloseButton } from '@/components/ui/close-button'
+import { CopyLinkButton } from '@/components/ui/copy-link-button'
 import { Select } from '@/components/ui/select'
 import { Combobox } from '@/components/ui/combobox'
 import { Markdown } from '@/components/ui/markdown'
@@ -11,17 +14,32 @@ import { useAgents } from '@/lib/agents'
 import { useSession } from '@/lib/session'
 import {
   addComment,
+  addDependency,
+  archiveTask,
   deleteTask,
+  removeDependency,
   reviewTask,
   unwatchTask,
   updateTask,
   useBoardAgents,
+  useBoardTasks,
   useTask,
   watchTask,
   type Board,
 } from '@/lib/boards'
-import { PRIORITIES, PRIORITY_ICON, STATUS_LABEL, TASK_STATUSES, type Priority, type TaskStatus } from '@/lib/task-const'
+import {
+  EFFORTS,
+  EFFORT_LABEL,
+  PRIORITIES,
+  PRIORITY_ICON,
+  STATUS_LABEL,
+  TASK_STATUSES,
+  type Effort,
+  type Priority,
+  type TaskStatus,
+} from '@/lib/task-const'
 import { relativeTime } from '@/lib/fleet'
+import { cn } from '@/lib/cn'
 
 const MOVE: TaskStatus[] = [...TASK_STATUSES, 'failed', 'cancelled']
 
@@ -36,21 +54,22 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
   // Restrict the assignee list to the board's agent policy (allow-all or list).
   const agents = boardCfg?.allowAll ? allAgents : allAgents.filter((a) => boardCfg?.models.includes(a.id))
   const canEdit = board.role === 'owner' || board.role === 'editor'
-  const assigneeOptions = [{ value: '', label: 'Unassigned' }, ...agents.map((a) => ({ value: a.id, label: a.label, sub: a.role }))]
+  const assigneeOptions = agents.map((a) => ({ value: a.id, label: a.label, sub: a.role }))
   const me = user?.email ?? user?.name ?? ''
+  // Board tickets for the dependency picker (exclude self + already-linked).
+  const { data: boardTasks = [] } = useBoardTasks(board.id)
 
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState('')
+  const [tab, setTab] = useState<'comments' | 'activity'>('comments')
   const commentRef = useRef<RichEditorHandle>(null)
 
   // Initialise editable fields ONCE per task (not on every refetch) so live
   // updates behind the modal don't reset what the user is typing.
   const loadedRef = useRef<string | null>(null)
-  const descSavedRef = useRef('')
   useEffect(() => {
     if (data?.task && loadedRef.current !== data.task.id) {
       loadedRef.current = data.task.id
-      descSavedRef.current = data.task.description ?? ''
       setTitle(data.task.title)
       setTags(data.task.tags.join(', '))
     }
@@ -93,9 +112,21 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                   {t.ticketRef && <span className="font-[var(--font-mono)] text-xs text-muted">{t.ticketRef}</span>}
                   <span className="text-xs text-muted">·</span>
                   <span className="text-xs text-muted">opened by {t.createdBy}</span>
+                  {t.archivedAt && (
+                    <span className="rounded-md border border-line-subtle bg-card px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
+                      Archived
+                    </span>
+                  )}
+                  <CopyLinkButton
+                    path={`/boards/${board.id}/${taskId}`}
+                    label="Copy link"
+                    title="Copy link to this ticket"
+                    className="ml-auto px-1.5 py-0.5 text-xs"
+                  />
                 </div>
 
-                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+                {/* Details — scrolls independently, capped so discussion gets room */}
+                <div className="max-h-[46%] shrink-0 space-y-5 overflow-y-auto px-5 py-4">
                   <Input
                     value={title}
                     disabled={!canEdit}
@@ -113,24 +144,19 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                     </div>
                   )}
 
-                  <Section label="Description">
-                    <RichEditor
-                      key={`desc-${t.id}`}
-                      value={t.description ?? ''}
-                      editable={canEdit}
-                      onSave={(md) => {
-                        // Only save real changes, and refresh just the board's
-                        // cards — never refetch the open ticket (would churn).
-                        if (!canEdit || md === descSavedRef.current) return
-                        descSavedRef.current = md
-                        void updateTask(taskId, { description: md || null }).then(() =>
-                          qc.invalidateQueries({ queryKey: ['board-tasks', board.id] }),
-                        )
-                      }}
-                      placeholder="Add detail…"
-                      minHeight="16rem"
-                    />
-                  </Section>
+                  <DescriptionSection
+                    key={`ds-${t.id}`}
+                    title={t.ticketRef ? `${t.ticketRef} · ${t.title}` : t.title}
+                    value={t.description ?? ''}
+                    canEdit={canEdit}
+                    onSave={(md) => {
+                      // RichEditor only fires this on a real change. Refresh just
+                      // the board's cards — never refetch the open ticket.
+                      void updateTask(taskId, { description: md || null }).then(() =>
+                        qc.invalidateQueries({ queryKey: ['board-tasks', board.id] }),
+                      )
+                    }}
+                  />
 
                   {/* Agent-reported result */}
                   {(t.outcome || t.resolution || t.errorMessage) && (
@@ -140,55 +166,75 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                       {t.errorMessage && <ResultBlock title="Error" danger>{t.errorMessage}</ResultBlock>}
                     </Section>
                   )}
+                </div>
 
-                  <Section label={`Comments (${data!.comments.length})`}>
-                    <ul className="space-y-2">
-                      {data!.comments.map((c) => (
-                        <li key={c.id} className="rounded-lg border border-line-subtle bg-card p-2">
-                          <div className="mb-0.5 flex items-center justify-between text-xs">
-                            <span className="text-accent">{c.author}</span>
-                            <span className="text-muted">{relativeTime(c.createdAt)}</span>
-                          </div>
-                          <div className="text-sm text-fg"><Markdown>{c.content}</Markdown></div>
-                        </li>
-                      ))}
-                      {data!.comments.length === 0 && <li className="text-xs text-muted">No comments yet.</li>}
-                    </ul>
-                    <div className="mt-2">
-                      <RichEditor ref={commentRef} key={`comment-${t.id}`} value="" editable placeholder="Write a comment…" minHeight="3rem" />
-                      <div className="mt-1 flex justify-end">
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            const md = (commentRef.current?.getMarkdown() ?? '').trim()
-                            if (!md) return
-                            commentRef.current?.clear()
-                            void addComment(taskId, md).then(refresh)
-                          }}
-                        >
-                          Send
-                        </Button>
-                      </div>
-                    </div>
-                  </Section>
+                {/* Discussion — Comments / Activity tabs; comment composer pinned */}
+                <div className="flex min-h-0 flex-1 flex-col border-t border-line-subtle">
+                  <div className="flex items-center gap-1 px-5 pt-3">
+                    {(['comments', 'activity'] as const).map((tb) => (
+                      <button
+                        key={tb}
+                        onClick={() => setTab(tb)}
+                        className={cn(
+                          'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                          tab === tb ? 'bg-card text-fg' : 'text-muted hover:text-fg',
+                        )}
+                      >
+                        {tb === 'comments' ? `Comments (${data!.comments.length})` : 'Activity'}
+                      </button>
+                    ))}
+                  </div>
 
-                  <Section label="Activity">
-                    <ul className="space-y-1">
+                  {tab === 'comments' ? (
+                    <>
+                      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 py-3">
+                        {data!.comments.map((c) => (
+                          <li key={c.id} className="rounded-lg border border-line-subtle bg-card p-2">
+                            <div className="mb-0.5 flex items-center justify-between text-xs">
+                              <span className="text-accent">{c.author}</span>
+                              <span className="text-muted">{relativeTime(c.createdAt)}</span>
+                            </div>
+                            <div className="text-sm text-fg"><Markdown>{c.content}</Markdown></div>
+                          </li>
+                        ))}
+                        {data!.comments.length === 0 && <li className="text-xs text-muted">No comments yet.</li>}
+                      </ul>
+                      <RichEditor
+                        ref={commentRef}
+                        key={`comment-${t.id}`}
+                        value=""
+                        editable
+                        bare
+                        className="shrink-0 border-t border-line-subtle"
+                        placeholder="Write a comment…  (Ctrl+Enter to send)"
+                        minHeight="5rem"
+                        onSubmit={() => {
+                          const md = (commentRef.current?.getMarkdown() ?? '').trim()
+                          if (!md) return
+                          commentRef.current?.clear()
+                          void addComment(taskId, md).then(refresh)
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 py-3">
                       {data!.activity.map((a) => (
                         <li key={a.id} className="flex items-center gap-2 text-xs text-muted">
                           <span className="text-accent">{a.actor}</span>
                           <span className="min-w-0 flex-1 truncate">{a.description}</span>
-                          <span>{relativeTime(a.createdAt)}</span>
+                          <span className="shrink-0">{relativeTime(a.createdAt)}</span>
                         </li>
                       ))}
+                      {data!.activity.length === 0 && <li className="text-xs text-muted">No activity yet.</li>}
                     </ul>
-                  </Section>
+                  )}
                 </div>
               </div>
 
               {/* Properties rail */}
-              <aside className="w-60 shrink-0 space-y-4 overflow-y-auto border-l border-line-subtle bg-sidebar p-4">
-                <button onClick={onClose} className="ml-auto block text-muted hover:text-fg" aria-label="Close">✕</button>
+              <aside className="flex w-60 shrink-0 flex-col border-l border-line-subtle bg-sidebar">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                <CloseButton onClick={onClose} className="-mr-1 ml-auto" />
                 <Prop label="Status">
                   <Select value={t.status} disabled={!canEdit} onChange={(e) => save({ status: e.target.value as TaskStatus })} className="w-full">
                     {MOVE.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -199,32 +245,70 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                     {PRIORITIES.map((p) => <option key={p} value={p}>{PRIORITY_ICON[p]} {p}</option>)}
                   </Select>
                 </Prop>
-                <Prop label="Assignee">
+                <Prop label="Assignees">
                   <Combobox
                     options={assigneeOptions}
-                    selected={t.assignedTo ? [t.assignedTo] : []}
-                    onChange={(arr) => canEdit && save({ assignedTo: arr[0] || null })}
+                    selected={t.assignees}
+                    onChange={(arr) => canEdit && save({ assignees: arr })}
                     disabled={!canEdit}
+                    multiple
                     placeholder="Unassigned"
                   />
                 </Prop>
+                <div className="grid grid-cols-2 gap-2">
+                  <Prop label="Effort">
+                    <Select value={t.effort ?? ''} disabled={!canEdit}
+                      onChange={(e) => save({ effort: (e.target.value || null) as Effort | null })} className="w-full">
+                      <option value="">—</option>
+                      {EFFORTS.map((ef) => <option key={ef} value={ef}>{EFFORT_LABEL[ef]}</option>)}
+                    </Select>
+                  </Prop>
+                  <Prop label="Time spent">
+                    <div className="flex h-8 items-center text-sm text-fg">{formatDuration(t.timeSpentSeconds)}</div>
+                  </Prop>
+                </div>
                 <Prop label="Due date">
                   <Input type="date" value={t.dueDate ? t.dueDate.slice(0, 10) : ''} disabled={!canEdit}
                     onChange={(e) => save({ dueDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
                     className="h-8 w-full text-sm" />
                 </Prop>
-                <div className="grid grid-cols-2 gap-2">
-                  <Prop label="Estimate (h)">
-                    <Input type="number" min="0" value={t.estimatedHours ?? ''} disabled={!canEdit}
-                      onBlur={(e) => save({ estimatedHours: e.target.value ? Number(e.target.value) : null })}
-                      className="h-8 w-full text-sm" />
+                <Prop label={`Blocked by (${data!.blockedBy.length})`}>
+                  <div className="space-y-1">
+                    {data!.blockedBy.map((d) => (
+                      <div key={d.id} className="flex items-center gap-1 text-xs">
+                        <span className="min-w-0 flex-1 truncate text-muted">
+                          {d.ticketRef && <span className="font-[var(--font-mono)]">{d.ticketRef} </span>}{d.title}
+                        </span>
+                        {canEdit && (
+                          <button onClick={async () => { await removeDependency(taskId, d.id); refresh() }}
+                            className="shrink-0 text-muted hover:text-[color:var(--theme-danger)]">✕</button>
+                        )}
+                      </div>
+                    ))}
+                    {data!.blockedBy.length === 0 && <div className="text-xs text-muted">None</div>}
+                    {canEdit && (
+                      <Combobox
+                        options={boardTasks
+                          .filter((bt) => bt.id !== taskId && !data!.blockedBy.some((b) => b.id === bt.id))
+                          .map((bt) => ({ value: bt.id, label: `${bt.ticketRef ? bt.ticketRef + ' ' : ''}${bt.title}`, sub: STATUS_LABEL[bt.status] }))}
+                        selected={[]}
+                        onChange={async (arr) => { if (arr[0]) { await addDependency(taskId, arr[0]); refresh() } }}
+                        placeholder="Add dependency…"
+                      />
+                    )}
+                  </div>
+                </Prop>
+                {data!.blocks.length > 0 && (
+                  <Prop label={`Blocks (${data!.blocks.length})`}>
+                    <div className="space-y-1">
+                      {data!.blocks.map((d) => (
+                        <div key={d.id} className="truncate text-xs text-muted">
+                          {d.ticketRef && <span className="font-[var(--font-mono)]">{d.ticketRef} </span>}{d.title}
+                        </div>
+                      ))}
+                    </div>
                   </Prop>
-                  <Prop label="Actual (h)">
-                    <Input type="number" min="0" value={t.actualHours ?? ''} disabled={!canEdit}
-                      onBlur={(e) => save({ actualHours: e.target.value ? Number(e.target.value) : null })}
-                      className="h-8 w-full text-sm" />
-                  </Prop>
-                </div>
+                )}
                 <Prop label="Labels">
                   <Input value={tags} disabled={!canEdit} onChange={(e) => setTags(e.target.value)}
                     onBlur={() => save({ tags: tags.split(',').map((s) => s.trim()).filter(Boolean) })}
@@ -247,10 +331,25 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
                   <div>Updated {relativeTime(t.updatedAt)}</div>
                   {t.completedAt && <div>Completed {relativeTime(t.completedAt)}</div>}
                 </div>
+                </div>
 
                 {canEdit && (
-                  <button onClick={async () => { await deleteTask(taskId); refresh(); onClose() }}
-                    className="text-xs text-muted hover:text-[color:var(--theme-danger)]">Delete task</button>
+                  <div className="flex items-center gap-2 p-3 pt-0">
+                    <button
+                      onClick={async () => { await archiveTask(taskId, !t.archivedAt); refresh(); onClose() }}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line px-2 py-1.5 text-xs text-muted transition-colors hover:bg-card hover:text-fg"
+                    >
+                      {t.archivedAt ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+                      {t.archivedAt ? 'Restore' : 'Archive'}
+                    </button>
+                    <button
+                      onClick={async () => { await deleteTask(taskId); refresh(); onClose() }}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[color:var(--theme-danger)]/40 px-2 py-1.5 text-xs text-[color:var(--theme-danger)] transition-colors hover:bg-[color:var(--theme-danger)]/10"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
                 )}
               </aside>
             </>
@@ -259,6 +358,138 @@ export function TaskDetail({ taskId, board, onClose }: { taskId: string; board: 
       </div>
     </AnimatePresence>
   )
+}
+
+// Description with a Read (rendered markdown) / Edit (WYSIWYG) toggle plus an
+// expand button for comfortable full-screen reading. Keeps a local draft so the
+// read view reflects edits without refetching the ticket.
+function DescriptionSection({
+  title,
+  value,
+  canEdit,
+  onSave,
+}: {
+  title: string
+  value: string
+  canEdit: boolean
+  onSave: (md: string) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [mode, setMode] = useState<'read' | 'edit'>(canEdit && !value ? 'edit' : 'read')
+  const [reading, setReading] = useState(false)
+  // Bumped on every save so the other (unfocused) editor instance remounts with
+  // the latest draft — keeps the inline + expanded views in sync.
+  const [rev, setRev] = useState(0)
+
+  const save = (md: string) => {
+    setDraft(md)
+    setRev((r) => r + 1)
+    onSave(md)
+  }
+
+  const ModeToggle = () =>
+    canEdit ? (
+      <div className="flex rounded-md border border-line p-0.5">
+        {(['read', 'edit'] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={cn(
+              'rounded px-2 py-0.5 text-[11px] capitalize transition-colors',
+              mode === m ? 'bg-card text-fg' : 'text-muted hover:text-fg',
+            )}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+    ) : null
+
+  const body = (keyPrefix: string, minHeight: string, readMax?: string) =>
+    mode === 'edit' && canEdit ? (
+      <RichEditor key={`${keyPrefix}-${rev}`} value={draft} editable onSave={save} placeholder="Add detail…" minHeight={minHeight} />
+    ) : draft ? (
+      <div className={cn('rounded-xl border border-line-subtle bg-card px-4 py-3 text-sm leading-relaxed', readMax && `${readMax} overflow-y-auto`)}>
+        <Markdown>{draft}</Markdown>
+      </div>
+    ) : (
+      <div className="rounded-xl border border-dashed border-line-subtle px-4 py-6 text-center text-xs text-muted">
+        No description{canEdit ? ' — switch to Edit to add one.' : '.'}
+      </div>
+    )
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-2">
+        <div className="text-xs font-semibold uppercase tracking-wide text-muted">Description</div>
+        <div className="ml-auto flex items-center gap-1">
+          <ModeToggle />
+          <button
+            onClick={() => setReading(true)}
+            title="Expand"
+            aria-label="Expand description"
+            className="grid h-6 w-6 place-items-center rounded text-muted transition-colors hover:bg-card hover:text-fg"
+          >
+            <Maximize2 size={13} />
+          </button>
+        </div>
+      </div>
+
+      {body('inline', '16rem')}
+
+      {/* Expanded view — slides in over the whole ticket modal (no stacked modal).
+          The modal panel is `relative`, so inset-0 covers it edge to edge. */}
+      <AnimatePresence>
+        {reading && (
+          <motion.div
+            className="mercury-panel absolute inset-0 z-30 flex flex-col overflow-hidden rounded-2xl"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <div className="flex items-center gap-3 border-b border-line-subtle px-5 py-3">
+              <button
+                onClick={() => setReading(false)}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-muted transition-colors hover:bg-card hover:text-fg"
+              >
+                <ChevronLeft size={16} /> Back
+              </button>
+              <div className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-fg">{title}</div>
+              <div className="flex w-[4.5rem] justify-end">
+                <ModeToggle />
+              </div>
+            </div>
+            {mode === 'edit' && canEdit ? (
+              <div className="min-h-0 flex-1">
+                <RichEditor key={`exp-${rev}`} value={draft} editable bare fill onSave={save} placeholder="Add detail…" />
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                {draft ? (
+                  <div className="mx-auto max-w-2xl text-sm leading-relaxed">
+                    <Markdown>{draft}</Markdown>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted">No description yet.</div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/** Accumulated agent time → compact "2h 15m" / "45m" / "30s" / "—". */
+function formatDuration(seconds: number): string {
+  if (!seconds) return '—'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h) return m ? `${h}h ${m}m` : `${h}h`
+  if (m) return `${m}m`
+  return `${seconds}s`
 }
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {

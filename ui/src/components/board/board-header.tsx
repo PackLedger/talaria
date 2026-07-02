@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
+import { Settings2, Archive } from 'lucide-react'
 import { Avatar } from '@/components/ui/avatar'
 import { renameBoard, useBoardMembers, type Board } from '@/lib/boards'
 
-// Board page header: editable name, stacked member avatars, share + agents.
-export function BoardHeader({ board, onShare, onAgents }: { board: Board; onShare: () => void; onAgents: () => void }) {
+// Board page header: editable name, stacked member avatars, and a single settings
+// gear (everything else lives in the board settings modal).
+export function BoardHeader({ board, onSettings }: { board: Board; onSettings: () => void }) {
   const qc = useQueryClient()
   const { data: members = [] } = useBoardMembers(board.id)
   const canEdit = board.role === 'owner' || board.role === 'editor'
@@ -22,6 +23,11 @@ export function BoardHeader({ board, onShare, onAgents }: { board: Board; onShar
 
   return (
     <div className="flex items-center gap-3 border-b border-line-subtle px-5 py-3">
+      {board.archivedAt && (
+        <span className="flex items-center gap-1 rounded-md border border-line-subtle bg-card px-2 py-0.5 text-[11px] text-muted">
+          <Archive size={12} /> Archived
+        </span>
+      )}
       {editing ? (
         <input
           autoFocus
@@ -34,7 +40,7 @@ export function BoardHeader({ board, onShare, onAgents }: { board: Board; onShar
       ) : (
         <button
           type="button"
-          onClick={() => canEdit && setEditing(true)}
+          onClick={() => canEdit && !board.archivedAt && setEditing(true)}
           className="min-w-0 flex-1 truncate text-left text-lg font-semibold text-fg"
           title={canEdit ? 'Rename' : undefined}
         >
@@ -44,11 +50,7 @@ export function BoardHeader({ board, onShare, onAgents }: { board: Board; onShar
 
       <div className="flex -space-x-2">
         {members.slice(0, 5).map((m) => (
-          <Avatar
-            key={m.userId}
-            name={m.email ?? m.name}
-            className="h-7 w-7 ring-2 ring-[color:var(--theme-panel)]"
-          />
+          <Avatar key={m.userId} name={m.email ?? m.name} className="h-7 w-7 ring-2 ring-[color:var(--theme-panel)]" />
         ))}
         {members.length > 5 && (
           <span className="grid h-7 w-7 place-items-center rounded-full border border-line bg-card text-[10px] text-muted ring-2 ring-[color:var(--theme-panel)]">
@@ -58,14 +60,15 @@ export function BoardHeader({ board, onShare, onAgents }: { board: Board; onShar
       </div>
 
       {canEdit && (
-        <>
-          <Button variant="ghost" size="sm" onClick={onAgents}>
-            Agents
-          </Button>
-          <Button variant="outline" size="sm" onClick={onShare}>
-            Share
-          </Button>
-        </>
+        <button
+          type="button"
+          onClick={onSettings}
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-card hover:text-fg"
+          title="Board settings"
+          aria-label="Board settings"
+        >
+          <Settings2 size={17} />
+        </button>
       )}
     </div>
   )

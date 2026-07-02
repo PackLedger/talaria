@@ -179,6 +179,25 @@ const MIGRATIONS: string[] = [
      primary key (board_id, agent_model)
    )`,
   `alter table boards add column if not exists allow_all_agents boolean not null default false`,
+  // Soft archive for boards and tickets — hidden from default views, restorable.
+  `alter table boards add column if not exists archived_at timestamptz`,
+  `alter table tasks add column if not exists archived_at timestamptz`,
+  // Agent-appropriate effort (t-shirt size), multiple assignees, and dependencies.
+  // Estimates in hours are silly for agents — dropped from the UI/API.
+  `alter table tasks add column if not exists effort text`,
+  `alter table tasks add column if not exists assignees jsonb not null default '[]'`,
+  // Actual time is accumulated from agent iterations (not a manual estimate).
+  // Future: attribute token spend + which LLM APIs were used per ticket.
+  `alter table tasks add column if not exists time_spent_seconds bigint not null default 0`,
+  // Backfill assignees from the old single assigned_to column (once).
+  `update tasks set assignees = to_jsonb(array[assigned_to]) where assigned_to is not null and assignees = '[]'::jsonb`,
+  // Ticket → ticket dependencies (task is blocked by depends_on_id).
+  `create table if not exists task_dependencies (
+     task_id uuid not null references tasks(id) on delete cascade,
+     depends_on_id uuid not null references tasks(id) on delete cascade,
+     created_at timestamptz not null default now(),
+     primary key (task_id, depends_on_id)
+   )`,
 ]
 
 function ensureMigrated(): Promise<void> {

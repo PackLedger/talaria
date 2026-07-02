@@ -270,19 +270,19 @@ body {
 .hljs-strong { font-weight: 600; }
 
 /* ── TipTap WYSIWYG content (markdown under the hood) ─────────────────────── */
-.tiptap .ProseMirror {
+.tiptap {
   outline: none;
   color: var(--theme-text);
   line-height: 1.55;
 }
-.tiptap .ProseMirror > * + * { margin-top: 0.5rem; }
-.tiptap .ProseMirror h1 { font-size: 1.25rem; font-weight: 600; }
-.tiptap .ProseMirror h2 { font-size: 1.1rem; font-weight: 600; }
-.tiptap .ProseMirror h3 { font-size: 1rem; font-weight: 600; }
-.tiptap .ProseMirror ul { list-style: disc; margin-left: 1.25rem; }
-.tiptap .ProseMirror ol { list-style: decimal; margin-left: 1.25rem; }
-.tiptap .ProseMirror a { color: var(--theme-accent); text-decoration: underline; }
-.tiptap .ProseMirror code {
+.tiptap > * + * { margin-top: 0.5rem; }
+.tiptap h1 { font-size: 1.25rem; font-weight: 600; }
+.tiptap h2 { font-size: 1.1rem; font-weight: 600; }
+.tiptap h3 { font-size: 1rem; font-weight: 600; }
+.tiptap ul { list-style: disc; margin-left: 1.25rem; }
+.tiptap ol { list-style: decimal; margin-left: 1.25rem; }
+.tiptap a { color: var(--theme-accent); text-decoration: underline; }
+.tiptap code {
   border: 1px solid var(--theme-border);
   background: var(--theme-card2);
   border-radius: 4px;
@@ -290,22 +290,22 @@ body {
   font-family: var(--font-mono);
   font-size: 0.85em;
 }
-.tiptap .ProseMirror pre {
+.tiptap pre {
   background: var(--code-bg);
   border: 1px solid var(--theme-border);
   border-radius: 0.5rem;
   padding: 0.6rem 0.8rem;
   overflow-x: auto;
 }
-.tiptap .ProseMirror pre code { border: 0; background: transparent; padding: 0; }
-.tiptap .ProseMirror blockquote {
+.tiptap pre code { border: 0; background: transparent; padding: 0; }
+.tiptap blockquote {
   border-left: 2px solid var(--theme-accent-border);
   padding-left: 0.75rem;
   color: var(--theme-muted);
   font-style: italic;
 }
 /* Placeholder */
-.tiptap .ProseMirror p.is-editor-empty:first-child::before {
+.tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--theme-muted);
   opacity: 0.7;

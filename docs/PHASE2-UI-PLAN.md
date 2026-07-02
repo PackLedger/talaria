@@ -1,14 +1,27 @@
 # Phase 2 — Talaria's own UI
 
-> Status: **started (2026-07-01).** The app is scaffolded in [`ui/`](../ui) (Vite + TanStack Start),
-> the design system is decided and built (**Mercury**, dark + light), and auth has landed (Google OAuth
-> + username/password, each independently toggleable). Phase 1 (the two-plane framework in front of the
-> real hermes-workspace + mission-control) is the on-ramp and stays useful. Phase 2 makes Talaria a
-> product with its own frontend and identity.
+> Status: **in progress (updated 2026-07-02).** The app in [`ui/`](../ui) (Vite + TanStack Start) has
+> the **Mercury** design system (dark + light), pluggable auth (Google OAuth + username/password, each
+> independently toggleable, Redis-backed sessions), durable state on Postgres + Redis, and a full
+> **project-management suite** owned in Talaria's own stack. Phase 1 (the two-plane framework in front
+> of the real hermes-workspace + mission-control) is the on-ramp and stays useful.
 >
-> **Decided so far:** framework = Vite + TanStack Start · design system = **Mercury** (see below) ·
-> auth = a pluggable, env-gated provider registry (Google first). **Next:** P2.1 — agent picker +
-> streaming chat over the gateway plane.
+> **Built so far (Phase 2):**
+> - **Boards & teams:** shareable kanban boards (personal/team), restrictive board-scoped agent policy
+>   (allow-all opt-in), consolidated Board settings modal, archive + delete, teams + members.
+> - **Tickets:** rich WYSIWYG (TipTap → markdown) description with read/edit + slide-in full editor,
+>   comments (Ctrl+Enter), activity tab, watchers, quality-review gate. **Directly-linkable routes**
+>   (`/boards/:boardId/:taskId`) + copy-link on cards/rows/modal.
+> - **Fields:** priority, effort (XS–XL), multiple assignees (board-scoped), labels, due date,
+>   dependencies (blocked-by/blocks), auto-accumulated time-spent. Estimates removed (silly for agents).
+> - **Statuses:** added a **Blocked** column; drag-and-drop board + list view with configurable,
+>   drag-reorderable, click-to-sort columns (persisted per board).
+> - **Multiplayer:** live boards via Redis pub/sub → SSE.
+> - **Agent guardrails:** agents can create/triage but can't self-assign or self-complete.
+>
+> **Next:** the **agent MCP** (`talaria-mcp`) exposing only the safe create/triage tools; then chat
+> (agent picker + streaming over the gateway plane), notifications/@mentions, cost/token ledger, and
+> the admin console. Token-spend + per-LLM-API attribution per ticket is a tracked follow-up.
 
 ## The idea
 

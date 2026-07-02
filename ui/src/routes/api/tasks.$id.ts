@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { getSessionUser } from '@/server/auth/session'
 import { checkAgentKey } from '@/server/agent-auth'
 import { boardAllowsAgent, boardRole, canEdit } from '@/server/boards'
-import { deleteTask, getTask, getTaskFull, PRIORITIES, TASK_STATUSES, updateTask } from '@/server/tasks'
+import { deleteTask, getTask, getTaskFull, EFFORTS, PRIORITIES, TASK_STATUSES, updateTask } from '@/server/tasks'
 
 const AllStatuses = [...TASK_STATUSES, 'failed', 'cancelled'] as const
 const Patch = z.object({
@@ -12,14 +12,15 @@ const Patch = z.object({
   description: z.string().max(20_000).nullish(),
   status: z.enum(AllStatuses).optional(),
   priority: z.enum(PRIORITIES).optional(),
-  assignedTo: z.string().max(200).nullish(),
+  effort: z.enum(EFFORTS).nullish(),
+  assignees: z.array(z.string().max(200)).max(20).optional(),
   dueDate: z.string().datetime().nullish(),
   tags: z.array(z.string().max(40)).max(20).optional(),
-  estimatedHours: z.number().min(0).max(10_000).nullish(),
-  actualHours: z.number().min(0).max(10_000).nullish(),
   outcome: z.string().max(50_000).nullish(),
   resolution: z.string().max(50_000).nullish(),
   errorMessage: z.string().max(50_000).nullish(),
+  archived: z.boolean().optional(),
+  addTimeSpentSeconds: z.number().min(0).max(86_400 * 30).optional(),
 })
 
 export const Route = createFileRoute('/api/tasks/$id')({
@@ -47,11 +48,18 @@ export const Route = createFileRoute('/api/tasks/$id')({
 
         const parsed = Patch.safeParse(await request.json().catch(() => null))
         if (!parsed.success) return json({ error: 'bad request' }, { status: 400 })
-        // Approval gate: agents can't self-complete — they land in quality_review
-        // for a human to approve to done.
-        if (agent && parsed.data.status === 'done') parsed.data.status = 'quality_review'
-        if (parsed.data.assignedTo && !(await boardAllowsAgent(task.boardId, parsed.data.assignedTo))) {
-          return json({ error: 'that agent is not allowed on this board' }, { status: 400 })
+        // Human-in-the-loop guardrails for agents: they may triage (priority,
+        // effort, labels, description, status → in_progress/blocked/quality_review)
+        // but cannot assign work or sign off. Assignment + done stay human.
+        if (agent) {
+          if (parsed.data.status === 'assigned') return json({ error: 'agents cannot assign tickets' }, { status: 403 })
+          if (parsed.data.status === 'done') parsed.data.status = 'quality_review'
+          parsed.data.assignees = undefined
+        }
+        for (const a of parsed.data.assignees ?? []) {
+          if (!(await boardAllowsAgent(task.boardId, a))) {
+            return json({ error: `agent "${a}" is not allowed on this board` }, { status: 400 })
+          }
         }
         const updated = await updateTask(params.id, parsed.data, actor)
         return json({ task: updated })

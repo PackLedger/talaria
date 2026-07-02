@@ -2,9 +2,10 @@ import { createFileRoute } from '@tanstack/react-router'
 import { json } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getSessionUser } from '@/server/auth/session'
-import { boardRole, deleteBoard, renameBoard } from '@/server/boards'
+import { archiveBoard, boardRole, deleteBoard, renameBoard } from '@/server/boards'
 
-// PATCH /api/boards/:id { name } → rename (owner/editor). DELETE → owner only.
+// PATCH /api/boards/:id { name?, archived? } → rename/archive (owner/editor).
+// DELETE → owner only.
 export const Route = createFileRoute('/api/boards/$id')({
   server: {
     handlers: {
@@ -13,9 +14,12 @@ export const Route = createFileRoute('/api/boards/$id')({
         if (!user) return json({ error: 'unauthorized' }, { status: 401 })
         const role = await boardRole(user.id, params.id)
         if (role !== 'owner' && role !== 'editor') return json({ error: 'forbidden' }, { status: 403 })
-        const parsed = z.object({ name: z.string().min(1).max(120) }).safeParse(await request.json().catch(() => null))
+        const parsed = z
+          .object({ name: z.string().min(1).max(120).optional(), archived: z.boolean().optional() })
+          .safeParse(await request.json().catch(() => null))
         if (!parsed.success) return json({ error: 'bad request' }, { status: 400 })
-        await renameBoard(params.id, parsed.data.name)
+        if (parsed.data.name !== undefined) await renameBoard(params.id, parsed.data.name)
+        if (parsed.data.archived !== undefined) await archiveBoard(params.id, parsed.data.archived)
         return json({ ok: true })
       },
       DELETE: async ({ request, params }) => {

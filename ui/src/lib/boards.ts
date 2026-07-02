@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Priority, Task, TaskActivity, TaskComment, TaskStatus } from '@/lib/task-const'
+import type { Effort, Priority, Task, TaskActivity, TaskComment, TaskLink, TaskStatus } from '@/lib/task-const'
 
 /** Subscribe to a board's live event stream — multiplayer. On any event, refetch
  *  the board's tasks (and the open task) so all viewers stay in sync. */
@@ -29,6 +29,7 @@ export interface Board {
   role: BoardRole
   createdAt: string
   updatedAt: string
+  archivedAt: string | null
 }
 export interface BoardMember {
   userId: string
@@ -52,13 +53,28 @@ export function useBoards() {
   })
 }
 
-export function useBoardTasks(boardId: string | null) {
+/** Archived boards — for the "Archived" section on the boards index. */
+export function useArchivedBoards() {
   return useQuery({
-    queryKey: ['board-tasks', boardId],
+    queryKey: ['boards', 'archived'],
+    queryFn: async (): Promise<Board[]> => {
+      const r = await fetch('/api/boards?archived=1', { credentials: 'same-origin' })
+      if (!r.ok) return []
+      return (await r.json()).boards
+    },
+  })
+}
+
+export function useBoardTasks(boardId: string | null, includeArchived = false) {
+  return useQuery({
+    queryKey: ['board-tasks', boardId, includeArchived],
     enabled: !!boardId,
-    refetchInterval: 5_000,
+    // Liveness comes from SSE (useBoardLive → invalidate). This is just a slow
+    // safety-net in case the event stream drops; a fast poll would churn
+    // re-renders behind an open ticket modal.
+    refetchInterval: 30_000,
     queryFn: async (): Promise<Task[]> => {
-      const r = await fetch(`/api/boards/${boardId}/tasks`, { credentials: 'same-origin' })
+      const r = await fetch(`/api/boards/${boardId}/tasks${includeArchived ? '?archived=1' : ''}`, { credentials: 'same-origin' })
       if (!r.ok) return []
       return (await r.json()).tasks
     },
@@ -109,6 +125,8 @@ export interface TaskFull {
   activity: TaskActivity[]
   watchers: string[]
   reviews: import('@/lib/task-const').QualityReview[]
+  blockedBy: TaskLink[]
+  blocks: TaskLink[]
 }
 
 export function useTask(taskId: string | null) {
@@ -131,9 +149,9 @@ export const createTask = (
     title: string
     description?: string
     priority?: Priority
-    assignedTo?: string | null
+    effort?: Effort | null
+    assignees?: string[]
     dueDate?: string | null
-    estimatedHours?: number | null
   },
 ) => post(`/api/boards/${boardId}/tasks`, input).then(j)
 
@@ -152,6 +170,16 @@ export const unwatchTask = (taskId: string, watcher: string) =>
 export const reviewTask = (taskId: string, status: 'approved' | 'rejected', notes?: string) =>
   post(`/api/tasks/${taskId}/review`, { status, notes }).then(j)
 
+export const addDependency = (taskId: string, dependsOnId: string) =>
+  post(`/api/tasks/${taskId}/dependencies`, { dependsOnId })
+export const removeDependency = (taskId: string, dependsOnId: string) =>
+  fetch(`/api/tasks/${taskId}/dependencies`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ dependsOnId }),
+  })
+
 export const updateTask = (
   taskId: string,
   patch: {
@@ -159,14 +187,15 @@ export const updateTask = (
     description?: string | null
     status?: TaskStatus
     priority?: Priority
-    assignedTo?: string | null
+    effort?: Effort | null
+    assignees?: string[]
     dueDate?: string | null
     tags?: string[]
-    estimatedHours?: number | null
-    actualHours?: number | null
     outcome?: string | null
     resolution?: string | null
     errorMessage?: string | null
+    archived?: boolean
+    addTimeSpentSeconds?: number
   },
 ) =>
   fetch(`/api/tasks/${taskId}`, {
@@ -183,8 +212,16 @@ export const renameBoard = (boardId: string, name: string) =>
     credentials: 'same-origin',
     body: JSON.stringify({ name }),
   })
+export const archiveBoard = (boardId: string, archived: boolean) =>
+  fetch(`/api/boards/${boardId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ archived }),
+  })
 export const deleteBoard = (boardId: string) =>
   fetch(`/api/boards/${boardId}`, { method: 'DELETE', credentials: 'same-origin' })
+export const archiveTask = (taskId: string, archived: boolean) => updateTask(taskId, { archived })
 export const shareBoard = (boardId: string, email: string, role: 'editor' | 'viewer') =>
   post(`/api/boards/${boardId}/members`, { email, role })
 export const unshareBoard = (boardId: string, userId: string) =>
