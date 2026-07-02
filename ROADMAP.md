@@ -16,6 +16,12 @@ Talaria is now a **two-plane fleet framework**, all verified live:
 
 M0–M4 + the fleet kanban view + the gateway multiplexer all pass `scripts/verify-stack.sh`.
 
+**Phase 2 (Talaria's own UI) — in progress (2026-07-02).** A self-hosted PM suite (boards, rich
+tickets, effort/assignees/dependencies/time, directly-linkable ticket routes, configurable list view,
+multiplayer) now runs in [`ui/`](./ui) on Postgres/Redis. Agents can triage but not self-assign or
+self-complete. **Next up: the agent MCP (`talaria-mcp`)** exposing only the safe create/triage tools.
+Full status in [`docs/PHASE2-UI-PLAN.md`](./docs/PHASE2-UI-PLAN.md).
+
 ## Milestones
 
 - **M0 (spike) ✅** ([`docs/m0-contract.md`](./docs/m0-contract.md)): the contract diff and the `:9119`

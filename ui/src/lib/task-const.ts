@@ -1,9 +1,15 @@
 // Task/board constants + types — shared by client and server (no server deps).
 
-export const TASK_STATUSES = ['inbox', 'assigned', 'in_progress', 'quality_review', 'done'] as const
+export const TASK_STATUSES = ['inbox', 'assigned', 'in_progress', 'blocked', 'quality_review', 'done'] as const
 export type TaskStatus = (typeof TASK_STATUSES)[number] | 'failed' | 'cancelled'
 export const PRIORITIES = ['low', 'medium', 'high', 'urgent'] as const
 export type Priority = (typeof PRIORITIES)[number]
+
+// Agent-appropriate effort sizing (t-shirt sizes) — estimates in hours are silly
+// for agents, so effort is a relative complexity signal instead.
+export const EFFORTS = ['xs', 's', 'm', 'l', 'xl'] as const
+export type Effort = (typeof EFFORTS)[number]
+export const EFFORT_LABEL: Record<Effort, string> = { xs: 'XS', s: 'S', m: 'M', l: 'L', xl: 'XL' }
 
 export interface Task {
   id: string
@@ -13,18 +19,27 @@ export interface Task {
   description: string | null
   status: TaskStatus
   priority: Priority
-  assignedTo: string | null
+  effort: Effort | null
+  assignees: string[]
   createdBy: string
   dueDate: string | null
   tags: string[]
-  estimatedHours: number | null
-  actualHours: number | null
+  timeSpentSeconds: number
   outcome: string | null
   resolution: string | null
   errorMessage: string | null
   createdAt: string
   updatedAt: string
   completedAt: string | null
+  archivedAt: string | null
+}
+
+/** A ticket this task depends on (blocked by) or that depends on it (blocks). */
+export interface TaskLink {
+  id: string
+  ticketRef: string | null
+  title: string
+  status: TaskStatus
 }
 
 export interface QualityReview {
@@ -55,6 +70,7 @@ export const STATUS_LABEL: Record<string, string> = {
   inbox: 'Inbox',
   assigned: 'Assigned',
   in_progress: 'In progress',
+  blocked: 'Blocked',
   quality_review: 'Quality review',
   done: 'Done',
   failed: 'Failed',

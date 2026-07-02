@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { ReactNode } from 'react'
+import { CloseButton } from './close-button'
 
 // The one modal. Centered panel over a scrim; Esc + backdrop-click close.
 // Reuse for sharing, create dialogs, confirmations.
@@ -47,15 +48,13 @@ export function Modal({
             className={`mercury-panel relative z-10 w-full ${width} rounded-2xl`}
           >
             {title && (
-              <div className="flex items-center justify-between border-b border-line-subtle px-5 py-3">
+              <div className="flex items-center justify-between border-b border-line-subtle px-7 py-4">
                 <div className="text-sm font-semibold text-fg">{title}</div>
-                <button onClick={onClose} className="text-muted hover:text-fg" aria-label="Close">
-                  ✕
-                </button>
+                <CloseButton onClick={onClose} className="-mr-2" />
               </div>
             )}
-            <div className="p-5">{children}</div>
-            {footer && <div className="border-t border-line-subtle px-5 py-3">{footer}</div>}
+            <div className="p-7">{children}</div>
+            {footer && <div className="border-t border-line-subtle px-7 py-4">{footer}</div>}
           </motion.div>
         </div>
       )}

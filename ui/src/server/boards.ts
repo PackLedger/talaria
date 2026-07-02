@@ -13,6 +13,7 @@ export interface Board {
   role: BoardRole // the requesting user's role
   createdAt: string
   updatedAt: string
+  archivedAt: string | null
 }
 
 const RANK: Record<BoardRole, number> = { owner: 3, editor: 2, viewer: 1 }
@@ -24,18 +25,20 @@ export interface BoardMember {
   role: BoardRole
 }
 
-/** Boards the user can see — explicitly shared OR via a team they belong to. */
-export async function listBoards(userId: string): Promise<Board[]> {
+/** Boards the user can see — explicitly shared OR via a team they belong to.
+ *  Archived boards are hidden unless `archived` is requested. */
+export async function listBoards(userId: string, archived = false): Promise<Board[]> {
   const sql = await db()
   const rows = await sql`
     select b.id, b.name, b.owner_id as "ownerId", b.team_id as "teamId", t.name as "teamName",
            coalesce(m.role, case when tm.role = 'owner' then 'owner' when tm.role is not null then 'editor' end) as role,
-           b.created_at as "createdAt", b.updated_at as "updatedAt"
+           b.created_at as "createdAt", b.updated_at as "updatedAt", b.archived_at as "archivedAt"
     from boards b
     left join board_members m on m.board_id = b.id and m.user_id = ${userId}
     left join team_members tm on tm.team_id = b.team_id and tm.user_id = ${userId}
     left join teams t on t.id = b.team_id
-    where m.user_id is not null or tm.user_id is not null
+    where (m.user_id is not null or tm.user_id is not null)
+      and b.archived_at is ${archived ? sql`not null` : sql`null`}
     order by b.updated_at desc
   `
   return rows as unknown as Board[]
@@ -83,12 +86,17 @@ export async function createBoard(userId: string, name: string, teamId?: string 
     await tx`insert into board_members (board_id, user_id, role) values (${b.id}, ${userId}, 'owner')`
     return b
   })
-  return { ...board, teamName: null, role: 'owner' }
+  return { ...board, teamName: null, role: 'owner', archivedAt: null }
 }
 
 export async function renameBoard(boardId: string, name: string): Promise<void> {
   const sql = await db()
   await sql`update boards set name = ${name}, updated_at = now() where id = ${boardId}`
+}
+
+export async function archiveBoard(boardId: string, archived: boolean): Promise<void> {
+  const sql = await db()
+  await sql`update boards set archived_at = ${archived ? sql`now()` : null}, updated_at = now() where id = ${boardId}`
 }
 
 export async function deleteBoard(boardId: string): Promise<void> {

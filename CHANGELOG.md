@@ -2,6 +2,41 @@
 
 All notable changes to Talaria. Milestone labels refer to [`PLAN.md`](./PLAN.md).
 
+## [Unreleased] — Phase 2 UI (2026-07-02)
+
+Talaria's own front end ([`ui/`](./ui), Vite + TanStack Start) grows a full,
+self-hosted **project-management suite** — owned in Talaria's own Postgres/Redis,
+not proxied from mission-control.
+
+### Added
+- **Boards & teams** — shareable kanban boards (personal or team-owned), a
+  consolidated **Board settings** modal (General / People / Agents), board-scoped
+  agent policy (restrictive by default), teams + member management, and soft
+  **archive** for boards and tickets.
+- **Tickets** — rich detail modal: TipTap WYSIWYG description (markdown under the
+  hood) with read/edit toggle + slide-in full-screen editor, syntax-highlighted
+  code + hover links, comments (Ctrl+Enter to send), an **Activity** tab, watchers,
+  and a quality-review approval gate.
+- **Ticket routes** — each ticket is a directly-linkable nested route
+  (`/boards/:boardId/:taskId`) with copy-link buttons on cards, list rows, and the
+  modal.
+- **Fields** — agent-appropriate **effort** (XS–XL), **multiple assignees**
+  (board-scoped agents only), ticket **dependencies** (blocked-by / blocks), labels,
+  due date, and **auto-accumulated time-spent** (`addTimeSpentSeconds`). Manual hour
+  estimates removed.
+- **Blocked status** — a new kanban column for stalled / needs-input work.
+- **List view** — configurable, drag-reorderable, click-to-sort columns, persisted
+  per board.
+- **Multiplayer** — live boards via Redis pub/sub → SSE (`/api/boards/:id/events`).
+- **Reusable UI primitives** — `CloseButton`, `CopyLinkButton`, `InlineCreate`,
+  `danger` button variant; `RichEditor` gains `bare` / `fill` / `onSubmit` modes.
+- **Agent guardrails** — on `PUT /api/tasks/:id`, agents may triage but cannot
+  self-assign (`assigned` → 403) or self-complete (`done` → `quality_review`), and
+  cannot change assignees.
+
+### Changed
+- Sessions are Redis-backed (opaque sid → `sess:<sid>`), not HMAC cookies.
+
 ## [Unreleased] — 0.1.0
 
 Initial working slice: hermes-workspace ↔ mission-control bridge + per-agent adapter plugin.

@@ -13,7 +13,8 @@ export const Route = createFileRoute('/api/boards')({
       GET: async ({ request }) => {
         const user = await getSessionUser(request)
         if (!user) return json({ error: 'unauthorized' }, { status: 401 })
-        return json({ boards: await listBoards(user.id) })
+        const archived = new URL(request.url).searchParams.get('archived') === '1'
+        return json({ boards: await listBoards(user.id, archived) })
       },
       POST: async ({ request }) => {
         const user = await getSessionUser(request)

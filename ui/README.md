@@ -37,8 +37,55 @@ For Google: create OAuth credentials, set the authorized redirect URI to
 | `/api/auth/password` | POST | Username/password login |
 | `/api/auth/logout` | POST | Clear the session |
 
-Sessions are stateless HMAC-signed cookies (`src/server/auth/session.ts`); rotate
-`AUTH_SECRET` to invalidate everything.
+Sessions are **Redis-backed** (`src/server/auth/session.ts`): the cookie carries
+only an opaque session id, and the user record lives in Redis under `sess:<sid>`
+with a TTL. Logout deletes the key. Admins are designated by `AUTH_ADMIN_EMAILS`
+(comma-separated); everyone else who signs in is a member. The default self-host
+admin is the `AUTH_USERS` entry whose email is also in `AUTH_ADMIN_EMAILS`.
+
+## Data + infra
+
+Durable state is **Postgres** (`DATABASE_URL`); sessions and realtime pub/sub are
+**Redis** (`REDIS_URL`). Migrations are idempotent and run on boot. For local dev
+they run as containers (`talaria-postgres-dev` on `:5544`, `talaria-redis-dev` on
+`:6399`, both `--restart unless-stopped`). If the app can't reach either at boot it
+caches a failed migration and every request 500s until restarted — so bring the
+containers up first (`docker start talaria-postgres-dev talaria-redis-dev`).
+
+## Boards & tickets (project-management suite)
+
+Talaria owns a Plane/Linear-style PM suite (ripped from mission-control into our
+own Postgres, not proxied). Highlights:
+
+- **Boards** — shareable kanban boards, personal or team-owned. Restrictive agent
+  policy by default (allow-all is an explicit opt-in). Rename / archive / delete
+  live in a consolidated **Board settings** modal (General / People / Agents).
+- **Tickets** — rich detail modal with a WYSIWYG (TipTap) description that stores
+  markdown under the hood, read/edit toggle + slide-in full-screen editor,
+  comments (Ctrl+Enter to send), an activity tab, watchers, and a quality-review
+  approval gate. Each ticket is a **directly-linkable route**
+  (`/boards/:boardId/:taskId`) with copy-link affordances on cards, list rows, and
+  the modal.
+- **Fields** — priority, agent-appropriate **effort** (XS–XL, not hour estimates),
+  **multiple assignees** (board-scoped agents only), labels, due date, **ticket
+  dependencies** (blocked-by / blocks), and **auto-accumulated time spent** (agents
+  add per-iteration seconds via the API; no manual estimate).
+- **Statuses** — Inbox · Assigned · In progress · **Blocked** · Quality review ·
+  Done (+ Failed / Cancelled). Drag-and-drop across columns; a `blocked` column
+  parks stalled/needs-input work.
+- **Views** — kanban board + a **list view with configurable, drag-reorderable,
+  click-to-sort columns** (persisted per board in `localStorage`).
+- **Multiplayer** — boards are live via Redis pub/sub → SSE (`/api/boards/:id/events`).
+- **Teams** — create teams and manage members; team boards are visible to all members.
+
+### Agent guardrails (human-in-the-loop)
+
+Agents authenticate with `TALARIA_AGENT_KEY` (x-api-key / Bearer). On `PUT
+/api/tasks/:id` they may triage (priority, effort, labels, description, status →
+`in_progress`/`blocked`/`quality_review`) but **cannot** move a ticket to
+`assigned` (403) or `done` (coerced to `quality_review`), and **cannot** change
+assignees. Assignment and sign-off stay human. (A dedicated agent MCP that exposes
+only these safe operations is the next milestone — see [`../ROADMAP.md`](../ROADMAP.md).)
 
 ## Where this is headed (Phase 2 milestones)
 
